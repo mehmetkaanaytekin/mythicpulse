@@ -1,0 +1,59 @@
+## Interface: 120005
+## Title: |cff00ccffMythicPulse|r
+## Author: MythicPulse Team
+## Version: 1.2.0
+## Notes: All-in-one Mythic+ companion for WoW: Midnight. Spec-aware cooldowns with aura highlights, kick rotation, dispels, trinkets, auto-gossip, score prediction, demo mode, and more.
+## SavedVariables: MythicPulseDB
+## IconTexture: Interface\Icons\inv_relics_hourglass
+## X-Category: Dungeons & Raids
+## X-Website: https://github.com/mythicpulse
+## X-Curse-Project-ID: 0
+## X-Expansion: Midnight
+## X-Season: 1
+## AddonCompartmentFunc: MythicPulse_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: MythicPulse_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: MythicPulse_OnAddonCompartmentLeave
+
+# === Localization ===
+Locales\enUS.lua
+
+# === Data ===
+Data\Dungeons.lua
+Data\UtilitySpells.lua
+Data\UtilityDungeons.lua
+
+# === Core ===
+Core.lua
+Config.lua
+
+# === UI Framework ===
+UI\Fonts.lua
+UI\ProgressBar.lua
+UI\TimerBar.lua
+UI\CooldownIcon.lua
+UI\MainFrame.lua
+UI\TrackerFrame.lua
+UI\InterruptFrame.lua
+UI\ConfigPanel.lua
+UI\UtilityFrame.lua
+UI\RunSummary.lua
+
+# === Modules ===
+Modules\Comm.lua
+Modules\KeystoneTracker.lua
+Modules\InterruptTracker.lua
+Modules\Timer.lua
+Modules\DeathTracker.lua
+Modules\EnemyForces.lua
+Modules\AffixDisplay.lua
+Modules\PartyCooldowns.lua
+Modules\DungeonHistory.lua
+Modules\CombatRes.lua
+Modules\AutoSlot.lua
+Modules\DungeonTeleport.lua
+Modules\DungeonUtility.lua
+Modules\DispelTracker.lua
+Modules\AutoGossip.lua
+Modules\TrinketTracker.lua
+Modules\ScorePredictor.lua
+Modules\Demo.lua

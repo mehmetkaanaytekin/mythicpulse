@@ -39,3 +39,23 @@ luac.out
 *.x86_64
 *.hex
 
+# Ignore OS and editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.tmp
+
+# Ignore VSCode settings
+.vscode/
+
+# Ignore backup files
+*~
+
+# Ignore logs
+*.log
+
+# Ignore screenshots and icons (uncomment if you want to exclude)
+# screenshots/
+# *.png
+# *.jpg

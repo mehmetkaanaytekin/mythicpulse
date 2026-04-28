@@ -1,0 +1,249 @@
+--[[
+    MythicPulse - Interrupt Frame
+    Standalone secondary HUD for Interrupt tracking module.
+    Can be moved and scaled independently from the main Mythic+ timer HUD and Party Cooldowns.
+]]
+
+local _, MP = ...
+
+MP.InterruptFrame = {}
+
+local FRAME_WIDTH  = 260
+local FRAME_PADDING = 8
+local SECTION_GAP  = 6
+
+----------------------------------------------------------------------
+-- Create the interrupt frame
+----------------------------------------------------------------------
+local function CreateInterruptFrame()
+    local f = CreateFrame("Frame", "MythicPulseInterruptFrame", UIParent, "BackdropTemplate")
+    f:SetSize(FRAME_WIDTH, 10)  -- height set dynamically
+    f:SetFrameStrata("MEDIUM")
+    f:SetFrameLevel(9)
+    f:SetClampedToScreen(true)
+    f:SetMovable(true)
+    f:EnableMouse(true)
+
+    -- Backdrop
+    MP:CreateBackdrop(f)
+
+    -- Subtle glow
+    MP:CreateGlow(f, MP.COLORS.borderGlow, 4)
+
+    -- Title bar
+    f.titleBar = CreateFrame("Frame", nil, f)
+    f.titleBar:SetHeight(22)
+    f.titleBar:SetPoint("TOPLEFT", FRAME_PADDING, -FRAME_PADDING)
+    f.titleBar:SetPoint("TOPRIGHT", -FRAME_PADDING, -FRAME_PADDING)
+
+    f.titleText = f.titleBar:CreateFontString(nil, "OVERLAY")
+    f.titleText:SetFontObject(MP.Fonts.Header)
+    f.titleText:SetPoint("LEFT")
+    f.titleText:SetTextColor(MP.COLORS.brand.r, MP.COLORS.brand.g, MP.COLORS.brand.b)
+    f.titleText:SetText("MythicPulse Interrupts")
+
+    -- Separator under title
+    f.titleSep = f:CreateTexture(nil, "ARTWORK")
+    f.titleSep:SetTexture("Interface\\Buttons\\WHITE8x8")
+    f.titleSep:SetHeight(1)
+    f.titleSep:SetPoint("TOPLEFT", f.titleBar, "BOTTOMLEFT", 0, -3)
+    f.titleSep:SetPoint("TOPRIGHT", f.titleBar, "BOTTOMRIGHT", 0, -3)
+    f.titleSep:SetVertexColor(MP.COLORS.border.r, MP.COLORS.border.g, MP.COLORS.border.b, 0.4)
+    f._mpTitleSep = f.titleSep
+    if MP.db and MP.db.showBackdrop == false then f.titleSep:Hide() end
+
+    -- Content area (modules attach here)
+    f.content = CreateFrame("Frame", nil, f)
+    f.content:SetPoint("TOPLEFT", f.titleSep, "BOTTOMLEFT", 0, -SECTION_GAP)
+    f.content:SetPoint("RIGHT", f, "RIGHT", -FRAME_PADDING, 0)
+
+    -- Drag behavior
+    f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", function(self)
+        if not MP.db or not MP.db.locked then
+            self:StartMoving()
+        end
+    end)
+    f:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        -- Save position
+        if MP.db then
+            local point, _, relPoint, x, y = self:GetPoint()
+            MP.db.interruptFrame.point    = point
+            MP.db.interruptFrame.relPoint = relPoint
+            MP.db.interruptFrame.x        = x
+            MP.db.interruptFrame.y        = y
+        end
+    end)
+
+    -- Final sync after all visual layers exist (glow/title separator).
+    MP:ApplyBackdrop(f)
+
+    return f
+end
+
+----------------------------------------------------------------------
+-- Section creator for modules
+----------------------------------------------------------------------
+function MP.InterruptFrame:CreateSection(title, height)
+    local section = CreateFrame("Frame", nil, self.frame.content)
+    section:SetHeight(height or 40)
+    section:SetPoint("LEFT", 0, 0)
+    section:SetPoint("RIGHT", 0, 0)
+
+    if title then
+        section.label = section:CreateFontString(nil, "OVERLAY")
+        section.label:SetFontObject(MP.Fonts.Label)
+        section.label:SetPoint("TOPLEFT", 0, 0)
+        section.label:SetTextColor(MP.COLORS.textSecondary.r, MP.COLORS.textSecondary.g, MP.COLORS.textSecondary.b)
+        section.label:SetText(title)
+    end
+
+    return section
+end
+
+----------------------------------------------------------------------
+-- Layout: arrange sections vertically
+----------------------------------------------------------------------
+function MP.InterruptFrame:Layout()
+    if not self.sections then return end
+
+    local yOff = 0
+    local visibleSections = 0
+
+    for _, section in ipairs(self.sections) do
+        if section:IsShown() and section:GetHeight() > 0 then
+            section:ClearAllPoints()
+            section:SetPoint("TOPLEFT", self.frame.content, "TOPLEFT", 0, -yOff)
+            section:SetPoint("RIGHT", self.frame.content, "RIGHT", 0, 0)
+            yOff = yOff + section:GetHeight() + SECTION_GAP
+            visibleSections = visibleSections + 1
+        end
+    end
+
+    -- If no sections are visible, hide the frame completely (unless unlocked for dragging)
+    if visibleSections == 0 and (MP.db and MP.db.locked) then
+        self.frame:Hide()
+        return
+    end
+
+    -- Resize main frame to fit content
+    local totalHeight = FRAME_PADDING + 22 + 3 + SECTION_GAP + yOff + FRAME_PADDING
+    self.frame:SetHeight(math.max(totalHeight, 60))
+
+    -- Re-evaluate visibility
+    self:UpdateVisibility()
+end
+
+----------------------------------------------------------------------
+-- Add a section to the layout
+----------------------------------------------------------------------
+function MP.InterruptFrame:AddSection(section)
+    if not self.sections then self.sections = {} end
+    table.insert(self.sections, section)
+end
+
+----------------------------------------------------------------------
+-- Toggle visibility
+----------------------------------------------------------------------
+function MP.InterruptFrame:Toggle()
+    if self.frame:IsShown() then
+        self.frame:Hide()
+        self.manualState = "hidden"
+    else
+        self.frame:Show()
+        self.manualState = "shown"
+    end
+end
+
+----------------------------------------------------------------------
+-- Auto-show/hide based on instance state
+----------------------------------------------------------------------
+function MP.InterruptFrame:UpdateVisibility()
+    if self.manualState == "hidden" then 
+        self.frame:Hide()
+        return 
+    end
+    if self.manualState == "shown" then
+        self.frame:Show()
+        return
+    end
+
+    local inInstance, instanceType = IsInInstance()
+    local shouldShow = MP:IsInMythicPlus() or instanceType == "party" or instanceType == "raid"
+
+    if shouldShow then
+        self.frame:Show()
+    else
+        self.frame:Hide()
+    end
+end
+
+----------------------------------------------------------------------
+-- Update lock state
+----------------------------------------------------------------------
+function MP.InterruptFrame:UpdateLock()
+    if InCombatLockdown() then
+        C_Timer.After(0.5, function() MP.InterruptFrame:UpdateLock() end)
+        return
+    end
+    local hasBackdrop = self.frame:GetBackdrop() ~= nil
+    if MP.db and MP.db.locked then
+        if hasBackdrop then
+            self.frame:SetBackdropBorderColor(0.15, 0.15, 0.2, 0.4)
+        end
+    else
+        if hasBackdrop then
+            self.frame:SetBackdropBorderColor(
+                MP.COLORS.border.r, MP.COLORS.border.g, MP.COLORS.border.b, MP.COLORS.border.a
+            )
+        end
+        self.frame:Show() -- Show to drag
+        self:Layout()
+    end
+end
+
+----------------------------------------------------------------------
+-- Reset position
+----------------------------------------------------------------------
+function MP.InterruptFrame:ResetPosition()
+    self.frame:ClearAllPoints()
+    self.frame:SetPoint("LEFT", UIParent, "LEFT", 320, 0)
+    if MP.db then
+        MP.db.interruptFrame.point    = "LEFT"
+        MP.db.interruptFrame.relPoint = "LEFT"
+        MP.db.interruptFrame.x        = 320
+        MP.db.interruptFrame.y        = 0
+    end
+end
+
+----------------------------------------------------------------------
+-- Initialization
+----------------------------------------------------------------------
+MP:RegisterEvent("PLAYER_ENTERING_WORLD", function()
+    if not MP.InterruptFrame.frame then
+        MP.InterruptFrame.frame = CreateInterruptFrame()
+        MP.InterruptFrame.sections = {}
+        MP.InterruptFrame.manualState = nil
+
+        -- Restore saved position
+        if MP.db and MP.db.interruptFrame then
+            local mf = MP.db.interruptFrame
+            MP.InterruptFrame.frame:ClearAllPoints()
+            MP.InterruptFrame.frame:SetPoint(
+                mf.point or "LEFT",
+                UIParent,
+                mf.relPoint or "LEFT",
+                mf.x or 320,
+                mf.y or 0
+            )
+            MP.InterruptFrame.frame:SetScale(mf.scale or 1.0)
+            MP.InterruptFrame.frame:SetAlpha(mf.alpha or 1.0)
+        end
+    end
+
+    C_Timer.After(0.5, function()
+        MP.InterruptFrame:UpdateVisibility()
+        MP.InterruptFrame:Layout()
+    end)
+end)
