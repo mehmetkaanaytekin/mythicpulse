@@ -231,23 +231,103 @@ MP:RegisterEvent("ADDON_LOADED", function(event, addon)
     MP.db = MythicPulseDB
     MP:Debug("Config loaded. Debug:", tostring(MP.db.debug))
 
-    -- Hide Blizzard's default M+ UI frames to avoid clutter
-    MP:RegisterEvent("CHALLENGE_MODE_START", function()
+    -- ============================================================
+    -- Hide Blizzard's default M+ UI frames to avoid clutter.
+    -- MythicPulse replaces them with its own HUD.
+    -- ============================================================
+    local function HideBlizzardMythicPlusUI()
+        -- Guard combat lockdown for any protected frames
+        if InCombatLockdown() then
+            C_Timer.After(1, HideBlizzardMythicPlusUI)
+            return
+        end
+
+        -- ChallengeModeSummaryFrame (post-run summary)
         if ChallengeModeSummaryFrame then
             ChallengeModeSummaryFrame:Hide()
         end
+
+        -- ScenarioBlocksFrame (the M+ objective/timer block in ObjectiveTracker)
+        if ScenarioBlocksFrame then
+            ScenarioBlocksFrame:SetAlpha(0)
+            ScenarioBlocksFrame:EnableMouse(false)
+            -- Hook OnShow to suppress it from reappearing during the run
+            if not ScenarioBlocksFrame._mpHooked then
+                ScenarioBlocksFrame._mpHooked = true
+                hooksecurefunc(ScenarioBlocksFrame, "Show", function(self)
+                    if MP:IsInMythicPlus() and not InCombatLockdown() then
+                        self:SetAlpha(0)
+                        self:EnableMouse(false)
+                    end
+                end)
+            end
+        end
+
+        -- ObjectiveTrackerFrame scenario header (if it exists in this build)
+        if ObjectiveTrackerFrame and ObjectiveTrackerFrame.BlocksFrame then
+            local bf = ObjectiveTrackerFrame.BlocksFrame
+            if bf.ScenarioObjectiveBlock then
+                bf.ScenarioObjectiveBlock:SetAlpha(0)
+            end
+            -- Some builds use MythicPlusObjectiveBlock
+            if bf.MythicPlusObjectiveBlock then
+                bf.MythicPlusObjectiveBlock:SetAlpha(0)
+            end
+        end
+
+        -- The ScenarioObjectiveTracker module (Dragonflight+/Midnight builds)
+        if ScenarioObjectiveTracker then
+            if ScenarioObjectiveTracker.ContentsFrame then
+                ScenarioObjectiveTracker.ContentsFrame:SetAlpha(0)
+            end
+        end
+    end
+
+    local function RestoreBlizzardMythicPlusUI()
+        if InCombatLockdown() then
+            C_Timer.After(1, RestoreBlizzardMythicPlusUI)
+            return
+        end
+
+        if ScenarioBlocksFrame then
+            ScenarioBlocksFrame:SetAlpha(1)
+            ScenarioBlocksFrame:EnableMouse(true)
+        end
+        if ObjectiveTrackerFrame and ObjectiveTrackerFrame.BlocksFrame then
+            local bf = ObjectiveTrackerFrame.BlocksFrame
+            if bf.ScenarioObjectiveBlock then
+                bf.ScenarioObjectiveBlock:SetAlpha(1)
+            end
+            if bf.MythicPlusObjectiveBlock then
+                bf.MythicPlusObjectiveBlock:SetAlpha(1)
+            end
+        end
+        if ScenarioObjectiveTracker and ScenarioObjectiveTracker.ContentsFrame then
+            ScenarioObjectiveTracker.ContentsFrame:SetAlpha(1)
+        end
+    end
+
+    MP:RegisterEvent("CHALLENGE_MODE_START", function()
+        HideBlizzardMythicPlusUI()
         -- Update visibility of M+-only sections
         MP:UpdateMythicOnlySections()
     end)
     MP:RegisterEvent("CHALLENGE_MODE_COMPLETED", function()
-        if ChallengeModeSummaryFrame then
-            ChallengeModeSummaryFrame:Hide()
-        end
+        RestoreBlizzardMythicPlusUI()
         -- Update visibility of M+-only sections
         MP:UpdateMythicOnlySections()
     end)
     MP:RegisterEvent("CHALLENGE_MODE_RESET", function()
+        RestoreBlizzardMythicPlusUI()
         -- Update visibility of M+-only sections
         MP:UpdateMythicOnlySections()
+    end)
+
+    -- Also suppress on world entry if already inside an M+ run
+    -- (e.g., after a /reload mid-dungeon)
+    C_Timer.After(1.5, function()
+        if MP:IsInMythicPlus() then
+            HideBlizzardMythicPlusUI()
+        end
     end)
 end)

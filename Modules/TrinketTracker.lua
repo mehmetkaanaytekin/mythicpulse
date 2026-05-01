@@ -55,8 +55,11 @@ local function ScanEquippedTrinkets()
                 local duration = 0
                 if C_Spell and C_Spell.GetSpellCooldown then
                     local info = C_Spell.GetSpellCooldown(spellID)
-                    if info and info.duration and info.duration > 0 then
-                        duration = info.duration
+                    -- tonumber() strips Blizzard's "secret number" taint
+                    -- that Midnight applies to certain cooldown API return values.
+                    local dur = info and tonumber(info.duration) or 0
+                    if dur and dur > 0 then
+                        duration = dur
                     end
                 end
                 -- Skip 0-CD entries (passive procs masquerading as spells)

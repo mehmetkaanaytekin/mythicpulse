@@ -14,7 +14,7 @@ local INDENT       = 16
 ----------------------------------------------------------------------
 -- Checkbox Factory
 ----------------------------------------------------------------------
-local function CreateCheckbox(parent, label, x, y, settingPath)
+local function CreateCheckbox(parent, label, x, y, settingPath, onChange)
     local cb = CreateFrame("CheckButton", nil, parent, "InterfaceOptionsCheckButtonTemplate")
     cb:SetPoint("TOPLEFT", x, y)
     cb.Text:SetText(label)
@@ -23,6 +23,7 @@ local function CreateCheckbox(parent, label, x, y, settingPath)
     cb:SetScript("OnClick", function(self)
         local checked = self:GetChecked()
         MP:SetSetting(settingPath, checked)
+        if onChange then onChange(checked) end
     end)
 
     function cb:Refresh()
@@ -163,17 +164,54 @@ local function BuildPanel()
     y = y - ROW_HEIGHT
 
     -- Scale sliders (3 frames × 2 = 6 sliders in a 2-column grid → 3 rows)
+    -- Each slider applies the change immediately to the corresponding frame.
     AddSliderRow(
-        { label = "Main HUD Scale",  min = 0.5, max = 2.0, step = 0.1,  path = "mainFrame.scale"      },
-        { label = "Main HUD Opacity",min = 0.3, max = 1.0, step = 0.05, path = "mainFrame.alpha"      }
+        {
+            label = "Main HUD Scale",  min = 0.5, max = 2.0, step = 0.1,
+            path = "mainFrame.scale",
+            onChange = function(v)
+                if MP.MainFrame and MP.MainFrame.frame then MP.MainFrame.frame:SetScale(v) end
+            end,
+        },
+        {
+            label = "Main HUD Opacity", min = 0.3, max = 1.0, step = 0.05,
+            path = "mainFrame.alpha",
+            onChange = function(v)
+                if MP.MainFrame and MP.MainFrame.frame then MP.MainFrame.frame:SetAlpha(v) end
+            end,
+        }
     )
     AddSliderRow(
-        { label = "Party CDs Scale", min = 0.5, max = 2.0, step = 0.1,  path = "trackerFrame.scale"   },
-        { label = "Party CDs Opacity", min = 0.3, max = 1.0, step = 0.05, path = "trackerFrame.alpha" }
+        {
+            label = "Party CDs Scale", min = 0.5, max = 2.0, step = 0.1,
+            path = "trackerFrame.scale",
+            onChange = function(v)
+                if MP.TrackerFrame and MP.TrackerFrame.frame then MP.TrackerFrame.frame:SetScale(v) end
+            end,
+        },
+        {
+            label = "Party CDs Opacity", min = 0.3, max = 1.0, step = 0.05,
+            path = "trackerFrame.alpha",
+            onChange = function(v)
+                if MP.TrackerFrame and MP.TrackerFrame.frame then MP.TrackerFrame.frame:SetAlpha(v) end
+            end,
+        }
     )
     AddSliderRow(
-        { label = "Interrupts Scale", min = 0.5, max = 2.0, step = 0.1,  path = "interruptFrame.scale" },
-        { label = "Interrupts Opacity", min = 0.3, max = 1.0, step = 0.05, path = "interruptFrame.alpha" }
+        {
+            label = "Interrupts Scale", min = 0.5, max = 2.0, step = 0.1,
+            path = "interruptFrame.scale",
+            onChange = function(v)
+                if MP.InterruptFrame and MP.InterruptFrame.frame then MP.InterruptFrame.frame:SetScale(v) end
+            end,
+        },
+        {
+            label = "Interrupts Opacity", min = 0.3, max = 1.0, step = 0.05,
+            path = "interruptFrame.alpha",
+            onChange = function(v)
+                if MP.InterruptFrame and MP.InterruptFrame.frame then MP.InterruptFrame.frame:SetAlpha(v) end
+            end,
+        }
     )
 
     y = y - 4  -- small gap between sections
@@ -221,22 +259,33 @@ local function BuildPanel()
     modHeader:SetText("Modules")
     y = y - ROW_HEIGHT
 
+    -- Helper: creates an onChange that enables/disables the runtime module
+    local function MakeModuleToggle(moduleName)
+        return function(checked)
+            if checked then
+                MP:EnableModule(moduleName)
+            else
+                MP:DisableModule(moduleName)
+            end
+        end
+    end
+
     local moduleList = {
-        { label = "Dungeon Timer",       path = "modules.timer.enabled" },
-        { label = "Death Tracker",       path = "modules.deathTracker.enabled" },
-        { label = "Enemy Forces",        path = "modules.enemyForces.enabled" },
-        { label = "Affix Display",       path = "modules.affixDisplay.enabled" },
-        { label = "Keystone Tracker",    path = "modules.keystoneTracker.enabled" },
-        { label = "Party Cooldowns",     path = "modules.partyCooldowns.enabled" },
-        { label = "Interrupt Tracker",   path = "modules.interruptTracker.enabled" },
-        { label = "Dispel Tracker",      path = "modules.dispelTracker.enabled" },
-        { label = "Trinket Tracker",     path = "modules.trinketTracker.enabled" },
-        { label = "Auto Gossip",         path = "modules.autoGossip.enabled" },
-        { label = "Battle Res Tracker",  path = "modules.combatRes.enabled" },
+        { label = "Dungeon Timer",       path = "modules.timer.enabled",            modName = "Timer" },
+        { label = "Death Tracker",       path = "modules.deathTracker.enabled",     modName = "DeathTracker" },
+        { label = "Enemy Forces",        path = "modules.enemyForces.enabled",      modName = "EnemyForces" },
+        { label = "Affix Display",       path = "modules.affixDisplay.enabled",     modName = "AffixDisplay" },
+        { label = "Keystone Tracker",    path = "modules.keystoneTracker.enabled",  modName = "KeystoneTracker" },
+        { label = "Party Cooldowns",     path = "modules.partyCooldowns.enabled",   modName = "PartyCooldowns" },
+        { label = "Interrupt Tracker",   path = "modules.interruptTracker.enabled", modName = "InterruptTracker" },
+        { label = "Dispel Tracker",      path = "modules.dispelTracker.enabled",    modName = "DispelTracker" },
+        { label = "Trinket Tracker",     path = "modules.trinketTracker.enabled",   modName = "TrinketTracker" },
+        { label = "Auto Gossip",         path = "modules.autoGossip.enabled",       modName = "AutoGossip" },
+        { label = "Battle Res Tracker",  path = "modules.combatRes.enabled",        modName = "CombatRes" },
         { label = "Run Summary Popup",   path = "modules.runSummary.autoShow" },
-        { label = "Dungeon History",     path = "modules.dungeonHistory.enabled" },
-        { label = "Auto Keystone Slot",  path = "modules.autoSlot.enabled" },
-        { label = "Dungeon Teleports",   path = "modules.dungeonTeleport.enabled" },
+        { label = "Dungeon History",     path = "modules.dungeonHistory.enabled",   modName = "DungeonHistory" },
+        { label = "Auto Keystone Slot",  path = "modules.autoSlot.enabled",         modName = "AutoSlot" },
+        { label = "Dungeon Teleports",   path = "modules.dungeonTeleport.enabled",  modName = "DungeonTeleport" },
     }
 
     -- Two-column layout: half on the left, remainder on the right
@@ -245,13 +294,14 @@ local function BuildPanel()
     local leftEndY     = modStartY
 
     for i, mod in ipairs(moduleList) do
+        local toggle = mod.modName and MakeModuleToggle(mod.modName) or nil
         if i <= splitIndex then
-            local cb = CreateCheckbox(content, mod.label, COL1_X, leftEndY, mod.path)
+            local cb = CreateCheckbox(content, mod.label, COL1_X, leftEndY, mod.path, toggle)
             table.insert(panel.controls, cb)
             leftEndY = leftEndY - ROW_HEIGHT
         else
             local rowY = modStartY - ((i - splitIndex - 1) * ROW_HEIGHT)
-            local cb = CreateCheckbox(content, mod.label, COL2_X, rowY, mod.path)
+            local cb = CreateCheckbox(content, mod.label, COL2_X, rowY, mod.path, toggle)
             table.insert(panel.controls, cb)
         end
     end

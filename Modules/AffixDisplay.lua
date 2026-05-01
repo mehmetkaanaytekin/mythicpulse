@@ -33,8 +33,8 @@ end
 local section
 local affixIcons = {}
 
-local ICON_SIZE = 32
-local ICON_GAP  = 5
+local ICON_SIZE = 36
+local ICON_GAP  = 6
 
 local function CreateUI()
     section = MP.MainFrame:CreateSection(MP.L["AFFIXES"], 26 + ICON_SIZE + 8)
@@ -66,12 +66,12 @@ local function CreateAffixIcon(parent, index)
     frame.icon:SetAllPoints()
     frame.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
-    -- Border (neutral dark ring — does not tint the icon)
+    -- Border (subtle ring — light enough to not cover icon edges)
     frame.border = frame:CreateTexture(nil, "OVERLAY")
     frame.border:SetTexture("Interface\\Buttons\\WHITE8x8")
     frame.border:SetPoint("TOPLEFT", -1, 1)
     frame.border:SetPoint("BOTTOMRIGHT", 1, -1)
-    frame.border:SetVertexColor(0.1, 0.1, 0.12, 0.85)
+    frame.border:SetVertexColor(0.30, 0.30, 0.35, 0.45)
     frame.border:SetDrawLayer("OVERLAY", 7)
 
     -- Inner bg (border effect)

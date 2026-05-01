@@ -31,15 +31,23 @@ local EnemyForces = {
 ----------------------------------------------------------------------
 -- UI
 ----------------------------------------------------------------------
-local section, progressBar, pullText
+local section, progressBar, pullText, pctText
 
 local function CreateUI()
-    section = MP.MainFrame:CreateSection(MP.L["ENEMY_FORCES"], 68)
+    section = MP.MainFrame:CreateSection(MP.L["ENEMY_FORCES"], 72)
 
-    -- Progress bar (height 20 for readable percentage text)
-    progressBar = MP.ProgressBarWidget:Create(section, 244, 20, "MythicPulseEnemyForcesBar")
+    -- Progress bar (height 24 for readable percentage text)
+    progressBar = MP.ProgressBarWidget:Create(section, 244, 24, "MythicPulseEnemyForcesBar")
     progressBar:SetPoint("TOPLEFT", 0, -26)
     progressBar:SetPoint("RIGHT", section, "RIGHT", 0, 0)
+
+    -- Standalone percentage text — positioned ON TOP of the progress bar
+    -- but created on the section frame so it's independent of the widget.
+    pctText = section:CreateFontString(nil, "OVERLAY")
+    pctText:SetFontObject(MP.Fonts.Label)   -- 16px OUTLINE
+    pctText:SetPoint("CENTER", progressBar, "CENTER", 0, 0)
+    pctText:SetTextColor(1, 1, 1)
+    pctText:SetJustifyH("CENTER")
 
     -- Pull count text (below bar)
     pullText = section:CreateFontString(nil, "OVERLAY")
@@ -58,9 +66,13 @@ end
 local function ApplyForceDisplay(current, total)
     if not progressBar then return end
 
+    -- Sanitize tainted "secret number" values from Blizzard APIs
+    current = tonumber(current) or 0
+    total   = tonumber(total) or 0
+
     if total <= 0 then
         progressBar:SetProgress(0)
-        progressBar.text:SetText("")
+        if pctText then pctText:SetText("") end
         if progressBar.leftText then progressBar.leftText:SetText("") end
         if pullText then pullText:SetText("") end
         return
@@ -76,23 +88,30 @@ local function ApplyForceDisplay(current, total)
     end
     if progressBar.spark then progressBar.spark:SetShown(pct > 0 and pct < 0.95) end
 
-    -- Clear left/right text — percentage lives in the center only
-    if progressBar.leftText  then progressBar.leftText:SetText("") end
+    -- Clear widget text — we use standalone pctText instead
+    if progressBar.text     then progressBar.text:SetText("") end
+    if progressBar.leftText then progressBar.leftText:SetText("") end
     if progressBar.rightText then progressBar.rightText:SetText("") end
 
     if current >= total then
-        progressBar.text:SetText("|cff4dff4dComplete!|r")
+        if pctText then
+            pctText:SetText("|cff4dff4dComplete!|r")
+        end
         progressBar:SetStatusBarColor(0.3, 1.0, 0.4, 1.0)
         progressBar:SetPaceMarker(nil)
     else
         -- Prominent percentage in bar center (matches Blizzard style)
-        progressBar.text:SetText(string.format("%.1f%%", pct * 100))
-        progressBar.text:SetTextColor(1, 1, 1)
+        if pctText then
+            pctText:SetText(string.format("%.1f%%", pct * 100))
+            pctText:SetTextColor(1, 1, 1)
+        end
 
         -- Color bar by projected pace (not raw %)
         local timer = MP:GetModule("Timer")
         local el    = timer and timer.GetElapsed   and timer:GetElapsed()   or 0
         local limit = timer and timer.GetTimeLimit and timer:GetTimeLimit() or 0
+        el    = tonumber(el) or 0
+        limit = tonumber(limit) or 0
         if el > 5 and current > 0 and limit > 0 then
             local projPct = (current / el) * limit / total
             if projPct >= 1.05 then
@@ -166,8 +185,9 @@ local function FindForcesIndex(numCriteria)
     local bestIdx, bestTotal = nil, 1   -- threshold: must beat 1
     for i = 1, numCriteria do
         local info = C_Scenario.GetCriteriaInfo(i)
-        if info and (info.totalQuantity or 0) > bestTotal then
-            bestTotal = info.totalQuantity
+        local tq = info and tonumber(info.totalQuantity) or 0
+        if tq > bestTotal then
+            bestTotal = tq
             bestIdx   = i
         end
     end
@@ -178,8 +198,9 @@ local function FindForcesIndex(numCriteria)
     local bestQIdx, bestQ = nil, 0
     for i = 1, numCriteria do
         local info = C_Scenario.GetCriteriaInfo(i)
-        if info and not info.completed and (info.quantity or 0) > bestQ then
-            bestQ    = info.quantity
+        local q = info and tonumber(info.quantity) or 0
+        if info and not info.completed and q > bestQ then
+            bestQ    = q
             bestQIdx = i
         end
     end
@@ -253,8 +274,9 @@ local function GetCriteriaForces(stepInfo)
         if not idx then return nil, nil end
         local info = C_Scenario.GetCriteriaInfo(idx)
         if not info then return nil, nil end
-        local c = info.quantity or info.currentQuantity or 0
-        local t = info.totalQuantity or info.maxQuantity or 0
+        -- tonumber() strips Blizzard's "secret number" taint in Midnight
+        local c = tonumber(info.quantity) or tonumber(info.currentQuantity) or 0
+        local t = tonumber(info.totalQuantity) or tonumber(info.maxQuantity) or 0
         if t <= 0 then return nil, nil end
         return c, t
     end
@@ -288,9 +310,9 @@ UpdateEnemyForces = function()
     local current, total
 
     -- Approach 1: direct weighted-progress fields (retail / some Midnight builds)
-    local wp  = stepInfo.weightedProgress
-    local wpt = stepInfo.weightedProgressTotal
-    if wp ~= nil and wpt ~= nil and wpt > 0 then
+    local wp  = tonumber(stepInfo.weightedProgress)
+    local wpt = tonumber(stepInfo.weightedProgressTotal)
+    if wp and wpt and wpt > 0 then
         current, total = wp, wpt
     end
 

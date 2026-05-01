@@ -57,42 +57,42 @@ local CATEGORY_CONFIG = {
     known = {
         label       = "",
         labelColor  = { 1.0, 1.0, 1.0, 1.0 },
-        iconColor   = { 1.0, 1.0, 1.0, 1.0 },
+        iconColor   = { 1.0, 1.0, 1.0, 1.0 },  -- no tint — keep icon crisp
         desaturate  = false,
         alpha       = 1.0,
-        borderColor = { 0.85, 0.70, 0.15, 0.90 },  -- gold (picked & relevant)
+        borderColor = { 0.70, 0.58, 0.12, 0.55 },  -- subtle gold border
     },
     knownOptional = {
         label       = "?",
         labelColor  = { 0.6, 0.6, 0.8, 1.0 },
-        iconColor   = { 0.8, 0.8, 0.9, 1.0 },
+        iconColor   = { 1.0, 1.0, 1.0, 1.0 },  -- no tint
         desaturate  = false,
         alpha       = 0.85,
-        borderColor = { 0.50, 0.42, 0.10, 0.75 },  -- muted gold (picked, low priority)
+        borderColor = { 0.45, 0.38, 0.10, 0.45 },  -- muted gold border
     },
     add = {
         label       = "+",
         labelColor  = { 0.30, 1.00, 0.40, 1.0 },
-        iconColor   = { 0.8, 1.0, 0.8, 1.0 },
+        iconColor   = { 1.0, 1.0, 1.0, 1.0 },  -- no tint
         desaturate  = false,
-        alpha       = 0.85,
-        borderColor = { 0.20, 0.80, 0.30, 0.85 },  -- green (not picked, should get)
+        alpha       = 0.90,
+        borderColor = { 0.15, 0.60, 0.22, 0.50 },  -- subtle green border
     },
     addOptional = {
         label       = "+?",
         labelColor  = { 0.30, 0.80, 0.40, 0.7 },
-        iconColor   = { 0.6, 0.8, 0.6, 1.0 },
+        iconColor   = { 1.0, 1.0, 1.0, 1.0 },  -- no tint
         desaturate  = false,
-        alpha       = 0.65,
-        borderColor = { 0.15, 0.55, 0.20, 0.65 },  -- muted green (optional suggestion)
+        alpha       = 0.70,
+        borderColor = { 0.12, 0.42, 0.16, 0.40 },  -- muted green border
     },
     remove = {
         label       = "-",
         labelColor  = { 0.5, 0.5, 0.5, 1.0 },
-        iconColor   = { 0.5, 0.5, 0.5, 1.0 },
+        iconColor   = { 0.6, 0.6, 0.6, 1.0 },  -- slight dim only for removed
         desaturate  = true,
-        alpha       = 0.38,
-        borderColor = { 0.25, 0.25, 0.30, 0.55 },  -- dim gray (not relevant)
+        alpha       = 0.40,
+        borderColor = { 0.20, 0.20, 0.24, 0.35 },  -- dim gray border
     },
 }
 

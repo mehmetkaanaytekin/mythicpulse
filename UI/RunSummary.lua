@@ -71,8 +71,10 @@ end
 ----------------------------------------------------------------------
 local function ResetBody(body)
     for _, line in ipairs(body.lines) do
-        line.key:SetText("")
-        line.val:SetText("")
+        if line.key then line.key:SetText("") end
+        if line.val and line.val.GetFont and line.val:GetFont() then
+            line.val:SetText("")
+        end
         line:Hide()
     end
 end
@@ -132,8 +134,10 @@ local function AddHeader(body, text)
         line.key:SetPoint("LEFT", 0, 0)
         line.key:SetTextColor(MP.COLORS.brand.r, MP.COLORS.brand.g, MP.COLORS.brand.b)
 
+        -- val is unused in headers but ResetBody iterates all lines,
+        -- so give it a valid font to prevent "Font not set" errors.
         line.val = line:CreateFontString(nil, "OVERLAY")
-        line.val:SetText("")
+        line.val:SetFontObject(MP.Fonts.Small)
 
         body.lines[idx] = line
     end

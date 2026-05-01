@@ -78,6 +78,11 @@ function Comm:OnEvent(event, prefix, msg, channel, sender)
     if prefix ~= PREFIX then return end
     if not msg or msg == "" then return end
 
+    -- Ignore messages from ourselves (the sender doesn't receive their own
+    -- addon messages in most cases, but REQUEST_KEYS round-trips can cause
+    -- duplicates when the dispatcher fires before the direct call returns).
+    if self:IsSelf(sender) then return end
+
     -- Parse "TYPE:payload" or just "TYPE"
     local msgType, payload = msg:match("^([^:]+):?(.*)$")
     if not msgType then return end

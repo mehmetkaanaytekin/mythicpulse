@@ -38,22 +38,30 @@ function MP.ProgressBarWidget:Create(parent, width, height, name)
     bar.spark:SetBlendMode("ADD")
     bar.spark:SetAlpha(0.8)
 
-    -- Text (center)
-    bar.text = bar:CreateFontString(nil, "OVERLAY")
-    bar.text:SetFontObject(MP.Fonts.Body)
-    bar.text:SetPoint("CENTER")
-    bar.text:SetTextColor(0.95, 0.95, 0.95)
+    -- Text overlay — a dedicated plain Frame at a high frame level so the
+    -- center text is NEVER occluded by the StatusBar fill texture or border.
+    bar.textOverlay = CreateFrame("Frame", nil, bar)
+    bar.textOverlay:SetAllPoints(bar)
+    bar.textOverlay:SetFrameLevel(bar:GetFrameLevel() + 10)
+
+    -- Center text (percentage / status) — uses MP.Fonts.Label (16px OUTLINE)
+    bar.text = bar.textOverlay:CreateFontString(nil, "OVERLAY")
+    bar.text:SetFontObject(MP.Fonts.Label)
+    bar.text:SetPoint("CENTER", bar, "CENTER", 0, 0)
+    bar.text:SetTextColor(1, 1, 1)
+    bar.text:SetJustifyH("CENTER")
+    bar.text:SetJustifyV("MIDDLE")
 
     -- Left text
-    bar.leftText = bar:CreateFontString(nil, "OVERLAY")
+    bar.leftText = bar.textOverlay:CreateFontString(nil, "OVERLAY")
     bar.leftText:SetFontObject(MP.Fonts.Small)
-    bar.leftText:SetPoint("LEFT", 4, 0)
+    bar.leftText:SetPoint("LEFT", bar, "LEFT", 4, 0)
     bar.leftText:SetTextColor(0.7, 0.7, 0.7)
 
     -- Right text
-    bar.rightText = bar:CreateFontString(nil, "OVERLAY")
+    bar.rightText = bar.textOverlay:CreateFontString(nil, "OVERLAY")
     bar.rightText:SetFontObject(MP.Fonts.Small)
-    bar.rightText:SetPoint("RIGHT", -4, 0)
+    bar.rightText:SetPoint("RIGHT", bar, "RIGHT", -4, 0)
     bar.rightText:SetTextColor(0.7, 0.7, 0.7)
 
     local function ApplyVisual(value)
