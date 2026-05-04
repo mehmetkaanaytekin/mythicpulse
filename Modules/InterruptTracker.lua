@@ -260,6 +260,12 @@ function InterruptTracker:OnInterruptCast(guid, name, spellID)
         m.kickResultTime = nil
         InterruptTracker.pending[m.guid] = nil
     end)
+
+    -- Auto-announce rotation after a kick if enabled
+    local cfg = MP.db and MP.db.modules and MP.db.modules.interruptTracker
+    if cfg and cfg.autoAnnounce and IsInGroup() then
+        C_Timer.After(0.2, function() InterruptTracker:AnnounceRotation() end)
+    end
 end
 
 ----------------------------------------------------------------------
@@ -277,55 +283,50 @@ end
 -- UI: Create the HUD section inside MainFrame
 ----------------------------------------------------------------------
 local section, rows
-local ROW_HEIGHT = 32
-local BAR_INSET  = 68  -- name width
+local lastAppliedCount = -1  -- tracks last count used for section sizing; -1 forces initial sync
+local ROW_HEIGHT  = 28
+local ICON_SIZE   = 24
 local RESULT_HOLD_TIME = 3  -- seconds to show green/red result
 
 local function CreateRow(parent, index)
-    local row = CreateFrame("Button", nil, parent)
+    local row = CreateFrame("Button", nil, parent, "BackdropTemplate")
     row:SetHeight(ROW_HEIGHT)
+    row:SetBackdrop({ edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+    row:SetBackdropBorderColor(0.5, 0.5, 0.6, 0.8)
 
-    -- No bar background or progress bar as requested by user
-
-    -- Spell icon
-    row.icon = row:CreateTexture(nil, "OVERLAY")
-    row.icon:SetSize(ROW_HEIGHT - 4, ROW_HEIGHT - 4)
-    row.icon:SetPoint("LEFT", 0, 0)
+    -- Spell icon — inset 1px so the left border of the row remains visible
+    row.icon = row:CreateTexture(nil, "ARTWORK", nil, 2)
+    row.icon:SetSize(ICON_SIZE, ICON_SIZE)
+    row.icon:SetPoint("LEFT", row, "LEFT", 1, 0)
     row.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-
-    -- Icon border: class-colored accent ring.
-    -- Keep alpha LOW (0.45) so it tints the border without overpowering the icon.
-    row.iconBorder = row:CreateTexture(nil, "OVERLAY", nil, 1)
-    row.iconBorder:SetTexture("Interface\\Buttons\\WHITE8x8")
-    row.iconBorder:SetPoint("TOPLEFT", row.icon, -1, 1)
-    row.iconBorder:SetPoint("BOTTOMRIGHT", row.icon, 1, -1)
-    row.iconBorder:SetVertexColor(0.3, 0.3, 0.4, 0.45)
-    row.icon:SetDrawLayer("OVERLAY", 2)
-    -- Start hidden; UpdateRows shows them only when a valid texture exists
     row.icon:Hide()
-    row.iconBorder:Hide()
 
-    -- Player name
-    row.nameText = row:CreateFontString(nil, "OVERLAY")
-    row.nameText:SetFontObject(MP.Fonts and MP.Fonts.Small or "GameFontNormalSmall")
-    row.nameText:SetPoint("LEFT", row.icon, "RIGHT", 4, 0)
-    row.nameText:SetPoint("RIGHT", -60, 0) -- Leave space for status text
-    row.nameText:SetJustifyH("LEFT")
-    row.nameText:SetWordWrap(false)
+    -- Filled bar behind name + status, flush against the icon
+    row.bar = MP.ProgressBarWidget:Create(row, 60, ROW_HEIGHT - 4)
+    row.bar:SetPoint("LEFT",   row.icon, "RIGHT", 0, 0)
+    row.bar:SetPoint("RIGHT",  row, "RIGHT", -1, 0)
+    row.bar:SetPoint("TOP",    row, "TOP",    0, -1)
+    row.bar:SetPoint("BOTTOM", row, "BOTTOM", 0,  1)
+    -- Hide the default centered text — we use leftText/rightText instead
+    if row.bar.text then row.bar.text:SetText("") end
 
-    -- Status text (READY / 12s / etc)
-    row.statusText = row:CreateFontString(nil, "OVERLAY")
-    row.statusText:SetFontObject(MP.Fonts and MP.Fonts.Body or "GameFontNormal")
-    row.statusText:SetPoint("RIGHT", -4, 0)
-    row.statusText:SetJustifyH("RIGHT")
+    -- Name overlay on the bar's left
+    if row.bar.leftText then
+        row.bar.leftText:SetFontObject(MP.Fonts and MP.Fonts.Body or "GameFontNormal")
+        local fp, fs = row.bar.leftText:GetFont()
+        row.bar.leftText:SetFont(fp, fs, "")
+        row.bar.leftText:SetShadowOffset(1, -1)
+        row.bar.leftText:SetShadowColor(0, 0, 0, 1)
+    end
 
-    -- "NEXT" rotation indicator (shown on the player who should kick next)
-    row.nextBadge = row:CreateFontString(nil, "OVERLAY")
-    row.nextBadge:SetFontObject(MP.Fonts and MP.Fonts.Small or "GameFontNormalSmall")
-    row.nextBadge:SetPoint("LEFT", row.nameText, "LEFT", 0, 0)
-    row.nextBadge:SetTextColor(1.0, 0.85, 0.20)
-    row.nextBadge:SetText("|cffffd866>> NEXT|r")
-    row.nextBadge:Hide()
+    -- Status overlay on the bar's right
+    if row.bar.rightText then
+        row.bar.rightText:SetFontObject(MP.Fonts and MP.Fonts.Body or "GameFontNormal")
+        local fp, fs = row.bar.rightText:GetFont()
+        row.bar.rightText:SetFont(fp, fs, "")
+        row.bar.rightText:SetShadowOffset(1, -1)
+        row.bar.rightText:SetShadowColor(0, 0, 0, 1)
+    end
 
     -- Tooltip: show player + spell info so the row is never ambiguous
     row:EnableMouse(true)
@@ -368,6 +369,27 @@ local function CreateRow(parent, index)
         SendChatMessage(msg, channel)
     end)
 
+    -- Drag-forward: rows otherwise eat the mouse so the frame can't be dragged.
+    -- When unlocked, hold-and-drag on a row moves the whole InterruptFrame.
+    row:RegisterForDrag("LeftButton")
+    row:SetScript("OnDragStart", function()
+        if MP.db and MP.db.locked then return end
+        local f = MP.InterruptFrame and MP.InterruptFrame.frame
+        if f then f:StartMoving() end
+    end)
+    row:SetScript("OnDragStop", function()
+        local f = MP.InterruptFrame and MP.InterruptFrame.frame
+        if not f then return end
+        f:StopMovingOrSizing()
+        if MP.db then
+            local p, _, rp, x, y = f:GetPoint()
+            MP.db.interruptFrame.point    = p
+            MP.db.interruptFrame.relPoint = rp
+            MP.db.interruptFrame.x        = x
+            MP.db.interruptFrame.y        = y
+        end
+    end)
+
     row:Hide()
     return row
 end
@@ -383,8 +405,8 @@ end
 local function GetOrCreateRow(idx)
     if not rows[idx] then
         local row = CreateRow(section, idx)
-        row:SetPoint("TOPLEFT", 0, -(idx - 1) * ROW_HEIGHT)
-        row:SetPoint("RIGHT", 0, 0)
+        row:SetPoint("TOPLEFT",  0, -(idx - 1) * ROW_HEIGHT)
+        row:SetPoint("TOPRIGHT", 0, -(idx - 1) * ROW_HEIGHT)
         rows[idx] = row
     end
     return rows[idx]
@@ -434,63 +456,56 @@ local function UpdateRows()
         if m then
             row.memberData = m
 
-            -- Icon: hide both icon and border if no valid texture (avoids blank rectangle)
+            -- Icon
             local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(m.spellID)
             if info and info.iconID then
                 row.icon:SetTexture(info.iconID)
                 row.icon:Show()
-                row.iconBorder:Show()
             else
                 row.icon:Hide()
-                row.iconBorder:Hide()
             end
 
-            -- Class-colored border accent (low alpha so the spell icon stays readable)
-            if RAID_CLASS_COLORS[m.class] then
-                local c = RAID_CLASS_COLORS[m.class]
-                row.iconBorder:SetVertexColor(c.r, c.g, c.b, 0.45)
-            end
+            -- Class color — bar fill + row border
+            local classColor = RAID_CLASS_COLORS and RAID_CLASS_COLORS[m.class]
+            local cr, cg, cb = 0.5, 0.5, 0.6
+            if classColor then cr, cg, cb = classColor.r, classColor.g, classColor.b end
+            -- Fill is a subtle class-colored tint; border carries the full class color.
+            -- Keeping fill alpha low ensures white name text remains readable.
+            row.bar:SetStatusBarColor(cr, cg, cb, 0.30)
+            row:SetBackdropBorderColor(cr, cg, cb, 0.90)
 
-            -- Name (class-colored). Highlight the next kicker with a gold dot.
+            -- Name always white for readability against the tinted bar background.
+            -- Gold dot prefix on the next kicker.
+            local displayName = m.name or "?"
             if i == nextIdx then
-                row.nameText:SetText("|cffffd866· |r" .. MP:ClassColoredName(m.name or "?", m.class))
+                row.bar.leftText:SetText("|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_1:14:14:0:-1|t " .. displayName)
             else
-                row.nameText:SetText(MP:ClassColoredName(m.name or "?", m.class))
+                row.bar.leftText:SetText(displayName)
             end
-            if row.nextBadge then row.nextBadge:Hide() end
+            row.bar.leftText:SetTextColor(1, 1, 1)
 
-            -- CD state
+            -- Status: progress fills as cooldown depletes; full = READY
             local remaining = m.cdEnd - now
             if remaining > 0 then
-                -- On cooldown
-                row.statusText:SetText(string.format("%.0fs", remaining))
-
-                -- Kick result coloring
+                row.bar:SetProgressAnimated(1 - math.min(remaining / m.duration, 1), 0.15)
+                row.bar.rightText:SetText(string.format("%.0fs", remaining))
                 if m.kickResult == "success" then
-                    row.statusText:SetTextColor(0.30, 1.00, 0.30)  -- Green
+                    row.bar.rightText:SetTextColor(0.40, 1.00, 0.40)
                 elseif m.kickResult == "fail" then
-                    row.statusText:SetTextColor(1.00, 0.30, 0.30)  -- Red
-                elseif m.kickResult == "pending" then
-                    row.statusText:SetTextColor(1.00, 1.00, 1.00)  -- White
+                    row.bar.rightText:SetTextColor(1.00, 0.35, 0.35)
                 else
-                    row.statusText:SetTextColor(0.80, 0.80, 0.30)  -- Yellow
+                    row.bar.rightText:SetTextColor(0.85, 0.85, 0.85)
                 end
-
-                -- No progress bar width needed
-
-                -- Clear kick result color after hold time
                 if m.kickResultTime and (now - m.kickResultTime) > RESULT_HOLD_TIME then
                     m.kickResult = nil
                     m.kickResultTime = nil
                 end
-
                 row.icon:SetDesaturated(true)
                 row.icon:SetAlpha(0.5)
             else
-                -- Ready
-                row.statusText:SetText("|cff4dff4dREADY|r")
-                row.statusText:SetTextColor(0.30, 1.00, 0.30)
-                -- No bar to hide
+                row.bar:SetProgress(1)
+                row.bar.rightText:SetText("READY")
+                row.bar.rightText:SetTextColor(0.40, 1.00, 0.50)
                 row.icon:SetDesaturated(false)
                 row.icon:SetAlpha(1.0)
                 m.kickResult = nil
@@ -508,12 +523,15 @@ local function UpdateRows()
         if rows[i] then rows[i]:Hide() end
     end
 
-    -- Resize section to fit current members only
+    -- Resize section to fit current members only (only relayout when count changes)
     if section then
         local count = #InterruptTracker.members
-        section:SetHeight(count * ROW_HEIGHT)
-        if count > 0 then section:Show() end
-        MP.InterruptFrame:Layout()
+        if count ~= lastAppliedCount then
+            lastAppliedCount = count
+            section:SetHeight(count * ROW_HEIGHT)
+            if count > 0 then section:Show() end
+            MP.InterruptFrame:Layout()
+        end
     end
 end
 
@@ -653,8 +671,6 @@ function InterruptTracker:OnFrameReady()
     end
 
     local cfg = MP.db and MP.db.modules and MP.db.modules.interruptTracker
-    -- Force showInCombatOnly to false to prevent user confusion
-    if cfg then cfg.showInCombatOnly = false end
 
     if cfg and cfg.showInCombatOnly and not self.inCombat then
         if section then section:Hide() end
@@ -668,6 +684,13 @@ function InterruptTracker:OnFrameReady()
     
     -- Always activate the tracker if the module is enabled
     self.active = true
+end
+
+function InterruptTracker:OnDisable()
+    self.active = false
+    if ticker then ticker:Hide() end
+    if section then section:Hide() end
+    if MP.InterruptFrame then MP.InterruptFrame:Layout() end
 end
 
 function InterruptTracker:OnPlayerEnteringWorld()

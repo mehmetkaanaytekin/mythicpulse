@@ -113,7 +113,14 @@ end
 -- Module Callbacks
 ----------------------------------------------------------------------
 function KeystoneTracker:OnEvent(event, ...)
-    if event == "CHALLENGE_MODE_MAPS_UPDATE" or event == "BAG_UPDATE" then
+    if event == "BAG_UPDATE" then
+        if self._bagUpdatePending then return end
+        self._bagUpdatePending = true
+        C_Timer.After(1, function()
+            self._bagUpdatePending = false
+            UpdateKeystoneInfo()
+        end)
+    elseif event == "CHALLENGE_MODE_MAPS_UPDATE" then
         UpdateKeystoneInfo()
     elseif event == "GROUP_ROSTER_UPDATE" then
         CleanRoster()
@@ -137,13 +144,6 @@ local KEY_LEVEL_COLORS = {
 }
 
 local function GetKeyLevelColor(level)
-    local color = KEY_LEVEL_COLORS[0]
-    for threshold, c in pairs(KEY_LEVEL_COLORS) do
-        if level >= threshold and threshold >= 0 then
-            color = c
-        end
-    end
-    -- Pick the highest matching threshold
     local best = 0
     for threshold, _ in pairs(KEY_LEVEL_COLORS) do
         if level >= threshold and threshold > best then

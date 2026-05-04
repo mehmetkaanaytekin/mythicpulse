@@ -1,25 +1,15 @@
 --[[
     MythicPulse - Party Cooldowns Module
-    OmniCD-style: one row per group member (local player listed first),
-    each showing ALL of their tracked cooldowns — self-defensives, externals,
-    and raid CDs — in a single unified "Cooldowns" section.
+    OmniCD-style: cooldown icons anchor directly to party/raid unit frames
+    (Blizzard default or ElvUI) via MP.UnitFrameProvider.
 
-    The spell categories in TRACKED_SPELLS clarify the spell's *target*:
-      defensive = cast on self only (Barkskin, Ice Block …)
-      external  = cast on another player (Ironbark, Pain Suppression …)
-      raidcd    = affects the whole group (Rallying Cry, Tranquility …)
-      utility   = situational (Shroud, Fade …)
-    All categories are shown on every row so the viewer can track both
-    "can my healer Pain Supp me?" and "does the Druid have Barkskin?".
-
-    Each row carries a thin coloured left-bar (decursive-style) that
-    lights up when the local player can dispel a debuff on that unit.
+    One icon row per group member. The local player is always listed first.
+    Icons show ALL tracked cooldowns for that class/spec.
 
     MIDNIGHT 12.0.5 COMPLIANCE NOTE:
     - Non-self UNIT_SPELLCAST_SUCCEEDED returns opaque spellIDs; only
       the local player's casts are trusted here.  Remote casts arrive
       via the "CD" Comm broadcast.
-    - Cooldown durations are estimated from baseline values.
 ]]
 
 local _, MP = ...
@@ -183,18 +173,14 @@ local function GetEffectiveDuration(spellID, isSelf)
 end
 
 ----------------------------------------------------------------------
--- UI constants
--- Frame content width = TrackerFrame FRAME_WIDTH(260) - 2×PADDING(8) = 244px
--- Dispel bar: 3px. Name col starts at x=6, width=50.
--- Icon area: 244 - 6 - 50 - 4(gap) = 184px.
--- Icon step = ICON_SIZE(32) + ICON_GAP(4) = 36px → floor(184/36) = 5 max.
+-- Config helpers
 ----------------------------------------------------------------------
-local ICON_SIZE         = 32
-local ICON_GAP          = 4
-local ROW_HEIGHT        = ICON_SIZE + 6    -- 38px
-local NAME_WIDTH        = 50
-local SECTION_LABEL_H   = 20
-local MAX_ICONS_PER_ROW = 5               -- 5 × 36 = 180px ≤ 184px available
+local ICON_SIZE_DEFAULT = 32
+local ICON_GAP_DEFAULT  = 4
+
+local function GetCfg()
+    return (MP.db and MP.db.modules and MP.db.modules.partyCooldowns) or {}
+end
 
 local DISPEL_COLORS = {
     magic   = {0.20, 0.45, 1.00},
@@ -205,11 +191,10 @@ local DISPEL_COLORS = {
 }
 
 ----------------------------------------------------------------------
--- Single unified section and row list
+-- Row state
 ----------------------------------------------------------------------
-local cooldownSection
-local rows    = {}
-local unitToRow = {}   -- unit token → row (fast UNIT_AURA lookup)
+local rows      = {}
+local unitToRow = {}  -- unitToken -> row (fast UNIT_AURA lookup)
 
 ----------------------------------------------------------------------
 -- Spec detection
@@ -233,25 +218,50 @@ local function GetUnitSpecID(unit)
 end
 
 ----------------------------------------------------------------------
--- Spell collection — all categories for every player
+-- Spell collection
 ----------------------------------------------------------------------
-local function CollectSpellsForUnit(className, specID)
+local function CollectSpellsForUnit(unitToken, className, specID)
     local spells = {}
+    local isLocalPlayer = unitToken == "player"
+
+    if isLocalPlayer then
+        local tt = MP:GetModule("TrinketTracker")
+        if tt and tt.active and tt.trinkets then
+            for spellID, tData in pairs(tt.trinkets) do
+                if not TRACKED_SPELLS[spellID] then
+                    TRACKED_SPELLS[spellID] = {
+                        class    = className,
+                        duration = tData.duration,
+                        category = "utility",
+                        name     = "Trinket",
+                        isTrinket = true,
+                    }
+                end
+            end
+        end
+    end
+
     for spellID, data in pairs(TRACKED_SPELLS) do
         if data.class == className then
             local include = true
             if data.spec and specID and data.spec ~= specID then
                 include = false
             end
-            if include then
-                table.insert(spells, spellID)
+            if include and isLocalPlayer and IsPlayerSpell and not data.isTrinket then
+                if not IsPlayerSpell(spellID) then include = false end
             end
+            if include and data.isTrinket and isLocalPlayer then
+                local tt = MP:GetModule("TrinketTracker")
+                if not tt or not tt.trinkets or not tt.trinkets[spellID] then
+                    include = false
+                end
+            end
+            if include then table.insert(spells, spellID) end
         end
     end
     return spells
 end
 
--- Sort: defensive → raidcd → external → utility, then by duration desc
 local function SortSpells(a, b)
     local catOrder = { defensive = 1, raidcd = 2, external = 3, utility = 4 }
     local catA = TRACKED_SPELLS[a] and catOrder[TRACKED_SPELLS[a].category] or 9
@@ -261,26 +271,17 @@ local function SortSpells(a, b)
 end
 
 ----------------------------------------------------------------------
--- Row creation — all rows have a dispel bar (auto-hides for self)
+-- Row creation — unparented, sized by BuildPlayerIcons
 ----------------------------------------------------------------------
-local function CreateRow(parent)
-    local row = CreateFrame("Frame", nil, parent)
-    row:SetHeight(ROW_HEIGHT)
-    row:SetPoint("LEFT",  0, 0)
-    row:SetPoint("RIGHT", 0, 0)
+local function CreateRow()
+    local row = CreateFrame("Frame", nil, UIParent)
+    row:SetSize(1, 1)
+    row:SetFrameStrata("MEDIUM")
+    row:Hide()
 
-    -- 3px coloured bar on the left edge; hidden until a dispellable debuff exists
     row.dispelBar = row:CreateTexture(nil, "OVERLAY")
-    row.dispelBar:SetSize(3, ROW_HEIGHT - 4)
-    row.dispelBar:SetPoint("LEFT", 0, 0)
     row.dispelBar:SetTexture("Interface\\Buttons\\WHITE8x8")
     row.dispelBar:Hide()
-
-    row.nameText = row:CreateFontString(nil, "OVERLAY")
-    row.nameText:SetFontObject(MP.Fonts.Small)
-    row.nameText:SetPoint("LEFT", 6, 0)
-    row.nameText:SetWidth(NAME_WIDTH)
-    row.nameText:SetJustifyH("LEFT")
 
     row.icons       = {}
     row.unitToken   = nil
@@ -288,46 +289,73 @@ local function CreateRow(parent)
     row.playerName  = nil
     row.playerClass = nil
     row.playerSpec  = nil
+    row.anchoredTo  = nil
 
     return row
 end
 
 local function GetOrCreateRow(idx)
     if not rows[idx] then
-        local row = CreateRow(cooldownSection)
-        row:SetPoint("TOPLEFT", 0, -(SECTION_LABEL_H + (idx - 1) * ROW_HEIGHT))
-        rows[idx] = row
+        rows[idx] = CreateRow()
     end
     return rows[idx]
 end
 
 ----------------------------------------------------------------------
--- UI creation
+-- Anchor a row's icon strip to the unit's frame
 ----------------------------------------------------------------------
-local function CreateUI()
-    cooldownSection = MP.TrackerFrame:CreateSection("Cooldowns", SECTION_LABEL_H + 1)
-    rows      = {}
-    unitToRow = {}
-    MP.TrackerFrame:AddSection(cooldownSection)
+local function AnchorRowToUnitFrame(row, unitToken)
+    if not MP.UnitFrameProvider then row:Hide(); return false end
+    local target = MP.UnitFrameProvider:GetFrame(unitToken)
+    if not target then row:Hide(); row.anchoredTo = nil; return false end
+
+    local cfg = GetCfg()
+    row:ClearAllPoints()
+    row:SetPoint(
+        cfg.anchorPoint   or "LEFT",
+        target,
+        cfg.relativePoint or "RIGHT",
+        cfg.offsetX       or 4,
+        cfg.offsetY       or 0
+    )
+    row:SetFrameLevel((target:GetFrameLevel() or 1) + 5)
+    row.anchoredTo = target
+    row:Show()
+    return true
 end
 
 ----------------------------------------------------------------------
--- Icon layout for a row
+-- Icon layout
 ----------------------------------------------------------------------
-local function GetIconSize()
-    local cfg = MP.db and MP.db.modules and MP.db.modules.partyCooldowns
-    return (cfg and cfg.iconSize) or ICON_SIZE
-end
-
 local function BuildPlayerIcons(row, spellList)
     for _, icon in ipairs(row.icons) do icon:Hide() end
 
-    local size = GetIconSize()
-    local step = size + ICON_GAP
+    local cfg      = GetCfg()
+    local size     = cfg.iconSize        or ICON_SIZE_DEFAULT
+    local gap      = cfg.iconGap         or ICON_GAP_DEFAULT
+    local maxIcons = cfg.maxIcons        or 8
+    local perRow   = cfg.iconsPerRow     or maxIcons
+    local growth   = cfg.growthDirection or "RIGHT"
+    local step     = size + gap
+    local count    = math.min(#spellList, maxIcons)
 
-    for i, spellID in ipairs(spellList) do
-        if i > MAX_ICONS_PER_ROW then break end
+    local function PlaceIcon(icon, idx)
+        local col  = (idx - 1) % perRow
+        local rowN = math.floor((idx - 1) / perRow)
+        icon:ClearAllPoints()
+        if growth == "RIGHT" then
+            icon:SetPoint("TOPLEFT", row, "TOPLEFT",  col * step,  -rowN * step)
+        elseif growth == "LEFT" then
+            icon:SetPoint("TOPRIGHT", row, "TOPRIGHT", -col * step, -rowN * step)
+        elseif growth == "UP" then
+            icon:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", col * step,  rowN * step)
+        else -- DOWN
+            icon:SetPoint("TOPLEFT", row, "TOPLEFT",  col * step, -rowN * step)
+        end
+    end
 
+    for i = 1, count do
+        local spellID = spellList[i]
         local icon = row.icons[i]
         if not icon then
             icon = MP.CooldownIconWidget:Create(row, size)
@@ -336,11 +364,40 @@ local function BuildPlayerIcons(row, spellList)
             icon:SetSize(size, size)
             if icon.ApplySize then icon:ApplySize(size) end
         end
-
-        icon:SetPoint("LEFT", row.nameText, "RIGHT", 4 + (i - 1) * step, 0)
+        PlaceIcon(icon, i)
         icon:SetSpell(spellID, row.playerClass)
         icon:ClearCooldown()
         icon:Show()
+    end
+
+    -- Size the row frame to contain the icon strip
+    local cols  = math.min(count, perRow)
+    local rowCt = math.max(1, math.ceil(count / perRow))
+    if count == 0 then
+        row:SetSize(1, 1)
+    elseif growth == "RIGHT" or growth == "LEFT" or growth == "DOWN" then
+        row:SetSize(cols * step - gap, rowCt * step - gap)
+    else -- UP
+        row:SetSize(cols * step - gap, rowCt * step - gap)
+    end
+
+    -- Dispel bar: 3px strip on the leading edge
+    local showBar = cfg.showDispelBar ~= false
+    if showBar then
+        row.dispelBar:ClearAllPoints()
+        if growth == "RIGHT" then
+            row.dispelBar:SetSize(3, math.max(1, row:GetHeight()))
+            row.dispelBar:SetPoint("RIGHT", row, "LEFT", -2, 0)
+        elseif growth == "LEFT" then
+            row.dispelBar:SetSize(3, math.max(1, row:GetHeight()))
+            row.dispelBar:SetPoint("LEFT", row, "RIGHT", 2, 0)
+        elseif growth == "UP" then
+            row.dispelBar:SetSize(math.max(1, row:GetWidth()), 3)
+            row.dispelBar:SetPoint("TOP", row, "BOTTOM", 0, -2)
+        else -- DOWN
+            row.dispelBar:SetSize(math.max(1, row:GetWidth()), 3)
+            row.dispelBar:SetPoint("BOTTOM", row, "TOP", 0, 2)
+        end
     end
 end
 
@@ -349,9 +406,11 @@ end
 ----------------------------------------------------------------------
 local function UpdateDispelIndicator(row)
     if not row or not row.dispelBar then return end
+    local cfg = GetCfg()
+    if cfg.showDispelBar == false then row.dispelBar:Hide(); return end
+
     local dt = MP:GetModule("DispelTracker")
     if not dt then row.dispelBar:Hide(); return end
-
     local unit = row.unitToken
     if not unit or not UnitExists(unit) then row.dispelBar:Hide(); return end
 
@@ -368,7 +427,7 @@ local function UpdateDispelIndicator(row)
 end
 
 ----------------------------------------------------------------------
--- Populate a single row for a unit
+-- Populate a row for a unit
 ----------------------------------------------------------------------
 local function PopulateRow(row, unit)
     local name     = UnitName(unit)
@@ -381,40 +440,38 @@ local function PopulateRow(row, unit)
     row.playerName  = name
     row.playerClass = class
     row.playerSpec  = specID
-    row.nameText:SetText(MP:ClassColoredName(name or "?", class))
     unitToRow[unit] = row
 
-    local spells = CollectSpellsForUnit(class, specID)
+    local cfg    = GetCfg()
+    local spells = CollectSpellsForUnit(unit, class, specID)
     table.sort(spells, SortSpells)
     local limited = {}
-    for j = 1, math.min(#spells, MAX_ICONS_PER_ROW) do limited[j] = spells[j] end
+    for j = 1, math.min(#spells, cfg.maxIcons or 8) do limited[j] = spells[j] end
     BuildPlayerIcons(row, limited)
     UpdateDispelIndicator(row)
-    row:Show()
+
+    if not AnchorRowToUnitFrame(row, unit) then
+        row:Hide()
+    end
 end
 
 ----------------------------------------------------------------------
--- Scan group and rebuild the unified section
+-- Scan group and anchor all rows to unit frames
 ----------------------------------------------------------------------
 local function ScanGroup()
-    if not cooldownSection then return end
-
-    local numMembers = GetNumGroupMembers()
-    if numMembers == 0 then
+    if not PartyCooldowns.active then
         for _, row in ipairs(rows) do row:Hide() end
-        cooldownSection:SetHeight(SECTION_LABEL_H + 1)
-        MP.TrackerFrame:Layout()
         return
     end
 
-    local rIdx = 0
+    local rIdx    = 0
     unitToRow = {}
 
-    -- Local player always first
+    -- Local player always first (even solo)
     rIdx = rIdx + 1
     PopulateRow(GetOrCreateRow(rIdx), "player")
 
-    -- Then the rest of the group
+    local numMembers = GetNumGroupMembers()
     for i = 1, numMembers do
         local unit
         if IsInRaid() then
@@ -428,15 +485,10 @@ local function ScanGroup()
         end
     end
 
-    -- Hide stale rows from a previously larger group
+    -- Hide rows from a previously larger group
     for i = rIdx + 1, #rows do
         if rows[i] then rows[i]:Hide() end
     end
-
-    local h = SECTION_LABEL_H + rIdx * ROW_HEIGHT + 2
-    cooldownSection:SetHeight(math.max(h, SECTION_LABEL_H + 1))
-    if rIdx > 0 then cooldownSection:Show() else cooldownSection:Hide() end
-    MP.TrackerFrame:Layout()
 end
 
 ----------------------------------------------------------------------
@@ -448,13 +500,13 @@ local function StartCooldownOnRow(matchKey, matchType, spellID)
 
     local playerGUID = UnitGUID("player")
     local playerName = UnitName("player")
-    local isSelf = (matchType == "guid" and matchKey == playerGUID)
-                or (matchType == "name" and matchKey == playerName)
+    local isSelf = (matchType == "guid" and MP:SafeStringEquals(matchKey, playerGUID))
+                or (matchType == "name" and MP:SafeStringEquals(matchKey, playerName))
     local dur = GetEffectiveDuration(spellID, isSelf)
 
     for _, row in ipairs(rows) do
-        local matches = (matchType == "guid" and row.playerGUID == matchKey)
-                     or (matchType == "name" and row.playerName == matchKey)
+        local matches = (matchType == "guid" and MP:SafeStringEquals(row.playerGUID, matchKey))
+                     or (matchType == "name" and MP:SafeStringEquals(row.playerName, matchKey))
         if matches then
             for _, icon in ipairs(row.icons) do
                 if icon.spellID == spellID then
@@ -468,7 +520,7 @@ local function StartCooldownOnRow(matchKey, matchType, spellID)
 end
 
 ----------------------------------------------------------------------
--- Aura refresh: active-icon highlighting + dispel indicator
+-- Aura refresh
 ----------------------------------------------------------------------
 local function GetRowSpellSet(row)
     local set = {}
@@ -480,12 +532,11 @@ end
 
 local function UpdateAurasForUnit(unit)
     if not unit or not UnitExists(unit) then return end
-
     local row = unitToRow[unit]
     if not row then
         local name = UnitName(unit)
         for _, r in ipairs(rows) do
-            if r.playerName == name then row = r; break end
+            if MP:SafeStringEquals(r.playerName, name) then row = r; break end
         end
     end
     if not row then return end
@@ -567,20 +618,18 @@ function PartyCooldowns:OnEvent(event, ...)
         OnSpellCast(...)
 
     elseif event == "GROUP_ROSTER_UPDATE" then
-        if not MP:IsInMythicPlus() then return end
-        C_Timer.After(0.5, ScanGroup)
+        if self.active then C_Timer.After(0.5, ScanGroup) end
 
     elseif event == "CHALLENGE_MODE_START" then
         self.active = true
-        if cooldownSection then cooldownSection:Show() end
-        if updateFrame     then updateFrame:Show() end
+        updateFrame:Show()
         ScanGroup()
 
     elseif event == "PLAYER_SPECIALIZATION_CHANGED" then
-        C_Timer.After(0.3, ScanGroup)
+        if self.active then C_Timer.After(0.3, ScanGroup) end
 
     elseif event == "INSPECT_READY" then
-        C_Timer.After(0.2, ScanGroup)
+        if self.active then C_Timer.After(0.2, ScanGroup) end
 
     elseif event == "UNIT_AURA" then
         local unit = ...
@@ -598,73 +647,108 @@ function PartyCooldowns:OnEvent(event, ...)
 
     elseif event == "CHALLENGE_MODE_RESET" or event == "CHALLENGE_MODE_COMPLETED" then
         self.players = {}
-        if cooldownSection then cooldownSection:Hide() end
-        if updateFrame     then updateFrame:Hide() end
+        for _, row in ipairs(rows) do
+            row:Hide()
+            row:ClearAllPoints()
+            row.anchoredTo = nil
+        end
+        updateFrame:Hide()
         self.active = false
     end
 end
 
 function PartyCooldowns:OnFrameReady()
-    if not MP.TrackerFrame or not MP.TrackerFrame.frame then
-        MP:Debug("TrackerFrame not ready, skipping PartyCooldowns UI creation")
-        return
+    if MP.UnitFrameProvider then
+        MP.UnitFrameProvider:RegisterCallback("PartyCooldowns", function(unitToken)
+            if not self.active then return end
+            if unitToken then
+                local row = unitToRow[unitToken]
+                if row then AnchorRowToUnitFrame(row, unitToken) end
+            else
+                for _, row in ipairs(rows) do
+                    if row.unitToken then AnchorRowToUnitFrame(row, row.unitToken) end
+                end
+            end
+        end)
     end
-    CreateUI()
-    self.active = true
     if MP.Comm then MP.Comm:RegisterHandler("CD", OnRemoteCast) end
-    ScanGroup()
-    updateFrame:Show()
+end
+
+function PartyCooldowns:OnDisable()
+    self.active = false
+    updateFrame:Hide()
+    for _, row in ipairs(rows) do
+        row:Hide()
+        row:ClearAllPoints()
+        row.anchoredTo = nil
+    end
+    if MP.UnitFrameProvider then
+        MP.UnitFrameProvider:UnregisterCallback("PartyCooldowns")
+    end
 end
 
 function PartyCooldowns:OnPlayerEnteringWorld()
-    C_Timer.After(3, ScanGroup)
+    C_Timer.After(3, function()
+        if self.active then ScanGroup() end
+    end)
+end
+
+function PartyCooldowns:RebuildAll()
+    if not self.active then return end
+    ScanGroup()
 end
 
 ----------------------------------------------------------------------
 -- Demo mode
 ----------------------------------------------------------------------
+local _demoPrinted = false
+
 function PartyCooldowns:StartDemo(demoParty)
-    if not cooldownSection then return end
     self.active = true
     unitToRow   = {}
 
     local rIdx = 0
     for i, p in ipairs(demoParty) do
-        rIdx = rIdx + 1
-        local row = GetOrCreateRow(rIdx)
         local unitToken = (i == 1) and "player" or ("party" .. (i - 1))
+        if MP.UnitFrameProvider and MP.UnitFrameProvider:GetFrame(unitToken) then
+            rIdx = rIdx + 1
+            local row = GetOrCreateRow(rIdx)
+            row.unitToken   = unitToken
+            row.playerGUID  = "demo-" .. p.name
+            row.playerName  = p.name
+            row.playerClass = p.class
+            row.playerSpec  = nil
+            unitToRow[unitToken] = row
 
-        row.unitToken   = unitToken
-        row.playerGUID  = "demo-" .. p.name
-        row.playerName  = p.name
-        row.playerClass = p.class
-        row.playerSpec  = nil
-        row.nameText:SetText(MP:ClassColoredName(p.name, p.class))
-        unitToRow[unitToken] = row
-
-        local spells = CollectSpellsForUnit(p.class, nil)
-        table.sort(spells, SortSpells)
-        local limited = {}
-        for j = 1, math.min(#spells, MAX_ICONS_PER_ROW) do limited[j] = spells[j] end
-        BuildPlayerIcons(row, limited)
-        -- No real auras in demo; dispel bar stays hidden
-        row:Show()
+            local cfg    = GetCfg()
+            local spells = CollectSpellsForUnit(unitToken, p.class, nil)
+            table.sort(spells, SortSpells)
+            local limited = {}
+            for j = 1, math.min(#spells, cfg.maxIcons or 8) do limited[j] = spells[j] end
+            BuildPlayerIcons(row, limited)
+            AnchorRowToUnitFrame(row, unitToken)
+        end
     end
 
     for i = rIdx + 1, #rows do if rows[i] then rows[i]:Hide() end end
 
-    local h = SECTION_LABEL_H + rIdx * ROW_HEIGHT + 2
-    cooldownSection:SetHeight(math.max(h, SECTION_LABEL_H + 1))
-    if rIdx > 0 then cooldownSection:Show() else cooldownSection:Hide() end
-    if MP.TrackerFrame and MP.TrackerFrame.Layout then MP.TrackerFrame:Layout() end
+    if rIdx < #demoParty and not _demoPrinted then
+        _demoPrinted = true
+        MP:Print("|cff88ccffDemo:|r Cooldown icons only display where a party/raid frame exists. Join a party or enable raid-style party frames to see all 5 demo slots.")
+    end
+
     updateFrame:Show()
 end
 
 function PartyCooldowns:StopDemo()
     self.active = false
-    for _, row in ipairs(rows) do row:Hide() end
-    if cooldownSection then cooldownSection:Hide() end
-    if updateFrame     then updateFrame:Hide() end
+    _demoPrinted = false
+    for _, row in ipairs(rows) do
+        row:Hide()
+        row:ClearAllPoints()
+        row.anchoredTo = nil
+    end
+    updateFrame:Hide()
     self.players = {}
 end
 

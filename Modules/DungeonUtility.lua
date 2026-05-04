@@ -19,7 +19,7 @@ local _, MP = ...
 
 local DungeonUtility = {}
 DungeonUtility.registeredEvents = {
-    "ACTIVE_PLAYER_SPECIALIZATION_CHANGED",
+    "PLAYER_SPECIALIZATION_CHANGED",
     "TRAIT_CONFIG_UPDATED",
     "PLAYER_ENTERING_WORLD",
     "CHALLENGE_MODE_START",
@@ -462,7 +462,7 @@ end
 ----------------------------------------------------------------------
 
 function DungeonUtility:OnEvent(event, ...)
-    if event == "ACTIVE_PLAYER_SPECIALIZATION_CHANGED" then
+    if event == "PLAYER_SPECIALIZATION_CHANGED" then
         self:Refresh()
         -- Delayed rebuild to let talent data settle
         C_Timer.After(0.5, function()

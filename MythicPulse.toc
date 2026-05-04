@@ -31,12 +31,13 @@ UI\Fonts.lua
 UI\ProgressBar.lua
 UI\TimerBar.lua
 UI\CooldownIcon.lua
+UI\UnitFrameProvider.lua
 UI\MainFrame.lua
 UI\TrackerFrame.lua
 UI\InterruptFrame.lua
+UI\CombatResFrame.lua
 UI\ConfigPanel.lua
 UI\UtilityFrame.lua
-UI\RunSummary.lua
 
 # === Modules ===
 Modules\Comm.lua
@@ -45,7 +46,6 @@ Modules\InterruptTracker.lua
 Modules\Timer.lua
 Modules\DeathTracker.lua
 Modules\EnemyForces.lua
-Modules\AffixDisplay.lua
 Modules\PartyCooldowns.lua
 Modules\DungeonHistory.lua
 Modules\CombatRes.lua

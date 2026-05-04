@@ -106,3 +106,5 @@ end
 -- Register
 ----------------------------------------------------------------------
 MP.ScorePredictor = ScorePredictor
+ScorePredictor.registeredEvents = {}
+MP:RegisterModule("ScorePredictor", ScorePredictor)

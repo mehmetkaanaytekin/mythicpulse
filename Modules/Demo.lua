@@ -1,7 +1,7 @@
 --[[
     MythicPulse - Demo Mode Module
     Injects mock data into all visible modules so users can configure layouts
-    outside of an actual M+ run.  Toggled via /mp demo.
+    outside of an actual M+ run.  Toggled via /mp display.
 
     Strategy:
     - Call Timer:StartDemo() to wire up the timerBar and reset section state.
@@ -147,7 +147,7 @@ end
 ----------------------------------------------------------------------
 function Demo:Start()
     if self.active then
-        MP:Print("Demo mode already active. /mp demo to stop.")
+        MP:Print("Display preview already active. /mp display to stop.")
         return
     end
     if not (MP.MainFrame and MP.MainFrame.frame) then
@@ -170,11 +170,11 @@ function Demo:Start()
     local dt = MP:GetModule("DispelTracker")
     if dt and dt.StartDemo then dt:StartDemo() end
 
-    if MP.TrackerFrame and MP.TrackerFrame.frame then
-        MP.TrackerFrame.frame:Show()
-    end
     if MP.InterruptFrame and MP.InterruptFrame.frame then
         MP.InterruptFrame.frame:Show()
+    end
+    if MP.CombatResFrame and MP.CombatResFrame.frame then
+        MP.CombatResFrame.frame:Show()
     end
 
     if MP.UpdateMythicOnlySections then
@@ -191,7 +191,7 @@ function Demo:Start()
     end
 
     ticker:Show()
-    MP:Print("|cff4dff4dDemo mode ON|r — drag frames to reposition. /mp demo again to stop.")
+    MP:Print("|cff4dff4dDisplay preview ON|r — drag frames to reposition. /mp display to stop.")
 end
 
 ----------------------------------------------------------------------
@@ -231,6 +231,7 @@ function Demo:Stop()
     if MP.UpdateMythicOnlySections then MP:UpdateMythicOnlySections() end
     if MP.TrackerFrame   and MP.TrackerFrame.UpdateVisibility   then MP.TrackerFrame:UpdateVisibility()   end
     if MP.InterruptFrame and MP.InterruptFrame.UpdateVisibility then MP.InterruptFrame:UpdateVisibility() end
+    if MP.CombatResFrame and MP.CombatResFrame.UpdateVisibility then MP.CombatResFrame:UpdateVisibility() end
     if MP.MainFrame      and MP.MainFrame.Layout                then MP.MainFrame:Layout()                end
 
     if ObjectiveTrackerFrame and Demo._trackerWasShown then
@@ -238,7 +239,7 @@ function Demo:Stop()
     end
     Demo._trackerWasShown = nil
 
-    MP:Print("|cffaaaaaaDemo mode OFF|r")
+    MP:Print("|cffaaaaaaDisplay preview OFF|r")
 end
 
 ----------------------------------------------------------------------
@@ -252,3 +253,5 @@ end
 -- Register
 ----------------------------------------------------------------------
 MP.Demo = Demo
+Demo.registeredEvents = {}
+MP:RegisterModule("Demo", Demo)

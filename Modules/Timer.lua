@@ -2,11 +2,12 @@
     MythicPulse - Dungeon Timer Module
 
     Layout (top → bottom inside the MainFrame section):
-      [timerBar]        large countdown + progress bar + +2/+3 markers
-      [thresholdText]   live "+3  X:XX     +2  X:XX" countdown row
-      [paceText]        "On pace for +3 · ahead 0:23"  (color-coded)
+      [deathRow]        "2 Deaths (+0:30)"  (red, hidden when no deaths)
+      [affixRow]        "[12] Fortified · Spiteful · Grievous"
+      [timerBar]        large "elapsed / total" text + progress bar + +3/+2 labels
+      [forcesContainer] Enemy Forces progress bar (EnemyForces module populates this)
       [pbText]          personal best for this dungeon/level
-      [splitFrame]      per-boss rows: name · kill-time · Δprev · ±PB
+      [splitFrame]      per-boss rows: name · kill-time · +prev · +-PB
 ]]
 
 local _, MP = ...
@@ -32,7 +33,6 @@ local Timer = {
         "CHALLENGE_MODE_COMPLETED",
         "CHALLENGE_MODE_RESET",
         "WORLD_STATE_TIMER_START",
-        "WORLD_STATE_TIMER_STOP",
         "ENCOUNTER_END",
     },
     active        = false,
@@ -50,14 +50,25 @@ local Timer = {
 ----------------------------------------------------------------------
 -- Section layout constants
 ----------------------------------------------------------------------
-local SECTION_BASE_H = 155   -- timerBar(62) + top-gap(14) + threshold(20) + pace(22) + pb(22) + splits-gap(15)
+-- Vertical offsets from section TOPLEFT (all negative Y):
+local Y_DEATH   =   0    -- death count row (Body font ~18px effective)
+local Y_AFFIX   = -22    -- affix names row (death 18 + gap 4)
+local Y_TIMER   = -54    -- timerBar frame top (affix 18 + gap 14)
+-- timerBar height = 24 + 46 = 70
+local Y_FORCES  = -128   -- forces bar (timer 70 + gap 4)
+-- forces height = 24
+local Y_PB      = -156   -- personal best (forces 24 + gap 4)
+-- pb height = 16
+local Y_SPLITS  = -180   -- boss splits (pb 16 + gap 8)
+
+local SECTION_BASE_H = 180
 local SPLIT_ROW_H    = 18
 
 ----------------------------------------------------------------------
 -- UI elements (module-scoped locals for easy access)
 ----------------------------------------------------------------------
 local timerBar, splitFrame, splitTexts
-local thresholdText, paceText, pbText
+local deathRow, affixRow, pbText
 
 ----------------------------------------------------------------------
 -- Section creation
@@ -65,43 +76,60 @@ local thresholdText, paceText, pbText
 local function CreateUI()
     local section = MP.MainFrame:CreateSection(nil, SECTION_BASE_H)
 
-    -- Timer bar: large countdown + progress bar + markers
-    timerBar = MP.TimerBarWidget:Create(section, 244, 16)
-    timerBar:SetPoint("TOPLEFT",  0, -14)
-    timerBar:SetPoint("TOPRIGHT", 0, -14)
-    -- timerBar frame is 62px tall → bottom at section y = -76
+    -- Death count row (top of section)
+    deathRow = section:CreateFontString(nil, "OVERLAY")
+    deathRow:SetFontObject(MP.Fonts.Body)
+    deathRow:SetPoint("TOPLEFT",  section, "TOPLEFT",  0, Y_DEATH)
+    deathRow:SetPoint("TOPRIGHT", section, "TOPRIGHT", 0, Y_DEATH)
+    deathRow:SetJustifyH("LEFT")
+    deathRow:SetText("")
+    Timer.deathRow = deathRow
 
-    -- Threshold countdown row: "+3  X:XX          +2  X:XX"
-    thresholdText = section:CreateFontString(nil, "OVERLAY")
-    thresholdText:SetFontObject(MP.Fonts.Small)
-    thresholdText:SetPoint("LEFT",  timerBar, "BOTTOMLEFT",  0, -8)
-    thresholdText:SetPoint("RIGHT", timerBar, "BOTTOMRIGHT", 0, -8)
-    thresholdText:SetJustifyH("CENTER")
-    thresholdText:SetText("")
+    -- Affix names row
+    affixRow = section:CreateFontString(nil, "OVERLAY")
+    affixRow:SetFontObject(MP.Fonts.Body)
+    affixRow:SetPoint("TOPLEFT",  section, "TOPLEFT",  0, Y_AFFIX)
+    affixRow:SetPoint("TOPRIGHT", section, "TOPRIGHT", 0, Y_AFFIX)
+    affixRow:SetJustifyH("LEFT")
+    affixRow:SetTextColor(MP.COLORS.textSecondary.r, MP.COLORS.textSecondary.g, MP.COLORS.textSecondary.b)
+    affixRow:SetText("")
+    Timer.affixRow = affixRow
 
-    -- Pace indicator: "On pace for +3 · 0:23 ahead"
-    paceText = section:CreateFontString(nil, "OVERLAY")
-    paceText:SetFontObject(MP.Fonts.Small)
-    paceText:SetPoint("LEFT",  timerBar, "BOTTOMLEFT",  0, -28)
-    paceText:SetPoint("RIGHT", timerBar, "BOTTOMRIGHT", 0, -28)
-    paceText:SetJustifyH("LEFT")
-    paceText:SetText("")
+    -- Timer bar: large "elapsed / total" text + progress bar with +3/+2 labels
+    timerBar = MP.TimerBarWidget:Create(section, 244, 24)
+    timerBar:SetPoint("TOPLEFT",  section, "TOPLEFT",  0, Y_TIMER)
+    timerBar:SetPoint("TOPRIGHT", section, "TOPRIGHT", 0, Y_TIMER)
+
+    -- Enemy forces container — EnemyForces module creates its bar here
+    Timer.forcesContainer = CreateFrame("Frame", nil, section)
+    Timer.forcesContainer:SetHeight(24)
+    Timer.forcesContainer:SetPoint("TOPLEFT",  section, "TOPLEFT",  0, Y_FORCES)
+    Timer.forcesContainer:SetPoint("TOPRIGHT", section, "TOPRIGHT", 0, Y_FORCES)
 
     -- Personal best reference line
     pbText = section:CreateFontString(nil, "OVERLAY")
     pbText:SetFontObject(MP.Fonts.Small)
-    pbText:SetPoint("TOPLEFT", timerBar, "BOTTOMLEFT", 0, -50)
+    pbText:SetPoint("TOPLEFT",  section, "TOPLEFT",  0, Y_PB)
+    pbText:SetPoint("TOPRIGHT", section, "TOPRIGHT", 0, Y_PB)
+    pbText:SetJustifyH("LEFT")
     pbText:SetTextColor(MP.COLORS.textMuted.r, MP.COLORS.textMuted.g, MP.COLORS.textMuted.b)
 
     -- Boss splits container
     splitFrame = CreateFrame("Frame", nil, section)
     splitFrame:SetHeight(1)
-    splitFrame:SetPoint("TOPLEFT", timerBar, "BOTTOMLEFT",  0, -72)
-    splitFrame:SetPoint("RIGHT",   section,  "RIGHT",       0,   0)
+    splitFrame:SetPoint("TOPLEFT", section, "TOPLEFT",  0, Y_SPLITS)
+    splitFrame:SetPoint("RIGHT",   section, "RIGHT",    0, 0)
     splitTexts = {}
 
     MP.MainFrame:AddSection(section)
     Timer.section = section
+
+    -- Invite EnemyForces to create its bar in our container now (if it loaded first).
+    local ef = MP:GetModule("EnemyForces")
+    if ef and ef.CreateBarInContainer then
+        ef:CreateBarInContainer(Timer.forcesContainer)
+    end
+
     return section
 end
 
@@ -128,63 +156,75 @@ local function RefreshPBDisplay()
 end
 
 ----------------------------------------------------------------------
--- Live threshold countdown: "+3  X:XX          +2  X:XX"
+-- Affix display: "[12] Fortified · Spiteful · Grievous"
 ----------------------------------------------------------------------
-local function UpdateThresholdText(elapsed)
-    if not thresholdText or not timerBar then return end
-    local p2t = timerBar.plusTwoTime   or 0
-    local p3t = timerBar.plusThreeTime or 0
-    if p2t <= 0 and p3t <= 0 then thresholdText:SetText(""); return end
-
-    local r3 = p3t - elapsed
-    local r2 = p2t - elapsed
-
-    local p3str = r3 > 0
-        and string.format("|cff4dff4d+3  %s|r", MP:FormatTime(r3))
-        or  "|cff555555+3  --|r"
-    local p2str = r2 > 0
-        and string.format("|cffffff00+2  %s|r", MP:FormatTime(r2))
-        or  "|cff555555+2  --|r"
-
-    thresholdText:SetText(p3str .. "          " .. p2str)
+local function UpdateAffixText()
+    if not affixRow then return end
+    local level, affixIDs = C_ChallengeMode.GetActiveKeystoneInfo()
+    if not affixIDs or #affixIDs == 0 then
+        affixRow:SetText("")
+        return
+    end
+    local parts = {}
+    for _, id in ipairs(affixIDs) do
+        local info = C_ChallengeMode.GetAffixInfo(id)
+        if type(info) == "table" and info.name then
+            table.insert(parts, info.name)
+        elseif type(info) == "string" then
+            table.insert(parts, info)
+        end
+    end
+    local levelStr = level and ("|cffffff00[" .. level .. "]|r ") or ""
+    affixRow:SetText(levelStr .. table.concat(parts, " · "))
 end
 
 ----------------------------------------------------------------------
--- Live pace indicator
+-- Death row — pulled from DeathTracker each tick (throttled)
 ----------------------------------------------------------------------
-local function UpdatePaceText(elapsed)
-    if not paceText or not timerBar then return end
-    local timeLimit = timerBar.timeLimit    or 0
-    local p2t       = timerBar.plusTwoTime  or 0
-    local p3t       = timerBar.plusThreeTime or 0
-    if timeLimit <= 0 then paceText:SetText(""); return end
+local _lastDeathCount = -1
 
-    local r3 = p3t - elapsed
-    local r2 = p2t - elapsed
-    local r0 = timeLimit - elapsed
+-- Skull raid-target marker (icon 8) — 64x64 standalone texture, ASCII-safe inline icon.
+local SKULL_ICON = "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_8:14:14:0:-1|t "
 
-    local text, r, g, b
-    if r3 > 0 then
-        text = string.format("On pace for +3  ·  ahead by %s", MP:FormatTime(r3))
-        r, g, b = 0.30, 1.00, 0.44
-    elseif r2 > 0 then
-        text = string.format("On pace for +2  ·  need %s faster for +3", MP:FormatTime(-r3))
-        r, g, b = 1.00, 0.85, 0.20
-    elseif r0 > 0 then
-        text = string.format("Timer only  ·  need %s faster for +2", MP:FormatTime(-r2))
-        r, g, b = 1.00, 0.50, 0.15
-    else
-        text = string.format("Overtime  ·  %s over", MP:FormatTime(-r0))
-        r, g, b = 1.00, 0.25, 0.25
+local function UpdateDeathRow()
+    if not deathRow then return end
+    local dt     = MP:GetModule("DeathTracker")
+    local deaths = dt and (dt.count or 0) or 0
+    if deaths == _lastDeathCount then return end
+    _lastDeathCount = deaths
+
+    if deaths <= 0 then
+        if Timer.active then
+            deathRow:SetText(SKULL_ICON .. "|cff4daa550 Deaths|r")
+        else
+            deathRow:SetText("")
+        end
+        return
     end
 
-    paceText:SetText(text)
-    paceText:SetTextColor(r, g, b)
+    local penalty, isPenalized = 0, false
+    if MP.DungeonData and Timer.keyLevel and Timer.keyLevel > 0 then
+        isPenalized = MP.DungeonData:DeathsPenalized(Timer.keyLevel)
+        if isPenalized then
+            penalty = MP.DungeonData:GetDeathPenalty(Timer.keyLevel) or 0
+        end
+    end
+    local totalPenalty = deaths * penalty
+    local label = deaths == 1 and "Death" or "Deaths"
+    if totalPenalty > 0 then
+        deathRow:SetText(string.format(
+            "%s|cffff5555%d %s|r |cff888888(+%s)|r",
+            SKULL_ICON, deaths, label, MP:FormatTime(totalPenalty)
+        ))
+    else
+        deathRow:SetText(string.format("%s|cffff5555%d %s|r", SKULL_ICON, deaths, label))
+    end
 end
 
 local function ClearLiveText()
-    if thresholdText then thresholdText:SetText("") end
-    if paceText      then paceText:SetText("") end
+    _lastDeathCount = -1
+    if deathRow  then deathRow:SetText("") end
+    if affixRow  then affixRow:SetText("") end
 end
 
 ----------------------------------------------------------------------
@@ -215,8 +255,7 @@ tickFrame:SetScript("OnUpdate", function(self, dt)
     if timerBar then
         timerBar:UpdateTimer(Timer.elapsed, Timer.timeLimit)
     end
-    UpdateThresholdText(Timer.elapsed)
-    UpdatePaceText(Timer.elapsed)
+    UpdateDeathRow()
 end)
 
 ----------------------------------------------------------------------
@@ -243,6 +282,12 @@ local function StartRun()
     Timer.runStartTime      = GetTime()
     Timer.worldTimerID      = nil
 
+    local _, affixIDs = C_ChallengeMode.GetActiveKeystoneInfo()
+    Timer.affixes = {}
+    if affixIDs then
+        for _, id in ipairs(affixIDs) do table.insert(Timer.affixes, id) end
+    end
+
     local dungeon = MP.DungeonData:GetByMapID(mapID)
     Timer.bossCount = dungeon and dungeon.numBosses or 0
 
@@ -256,8 +301,9 @@ local function StartRun()
         Timer.section:SetHeight(SECTION_BASE_H)
     end
 
-    -- Clear live text rows
+    -- Clear live text rows, then populate static ones
     ClearLiveText()
+    UpdateAffixText()
 
     local shortName = MP.DungeonData:GetShortName(mapID) or name
     MP.MainFrame:SetDungeonInfo(shortName, level)
@@ -272,13 +318,15 @@ local function StartRun()
     HideBlizzardTracker()
     tickFrame:Show()
 
-    -- Clear split text rows (reused across runs)
+    -- Clear and hide split rows from the previous run
     if splitTexts then
         for _, row in ipairs(splitTexts) do
             if row.text then row.text:SetText("") end
             row.splitData = nil
+            row:Hide()
         end
     end
+    if splitFrame then splitFrame:SetHeight(1) end
 
     MP:Debug("Timer started:", name, "+", level, "| Limit:", MP:FormatTime(timeLimit))
 end
@@ -309,33 +357,27 @@ local function EndRun(completed)
 
     local deathMod = MP:GetModule("DeathTracker")
     local deaths   = deathMod and deathMod.count or 0
+    local deathPenalty = MP.DungeonData and MP.DungeonData:GetDeathPenalty(Timer.keyLevel) or 5
     local runData  = {
-        mapID      = Timer.mapID,
-        keyLevel   = Timer.keyLevel,
-        elapsed    = Timer.elapsed,
-        timeLimit  = Timer.timeLimit,
-        deaths     = deaths,
-        timed      = completed and (Timer.elapsed <= Timer.timeLimit),
-        completed  = completed or false,
-        date       = date("%Y-%m-%d %H:%M"),
-        bossSplits = Timer.bossSplits,
+        mapID        = Timer.mapID,
+        keyLevel     = Timer.keyLevel,
+        elapsed      = Timer.elapsed,
+        timeLimit    = Timer.timeLimit,
+        deaths       = deaths,
+        timed        = completed and (Timer.elapsed <= Timer.timeLimit),
+        completed    = completed or false,
+        date         = date("%Y-%m-%d %H:%M"),
+        bossSplits   = Timer.bossSplits,
+        affixes      = Timer.affixes,
+        dungeonName  = (MP.DungeonData and MP.DungeonData:GetByMapID(Timer.mapID) or {}).shortName,
+        deathPenalty = deathPenalty,
+        totalPenalty = deaths * deathPenalty,
     }
+    Timer.affixes = nil
 
     local history = MP:GetModule("DungeonHistory")
     if history and history.RecordRun then
         history:RecordRun(runData)
-    end
-
-    if completed and MP.RunSummary and MP.RunSummary.Show then
-        MP.RunSummary.lastRun = runData
-        local cfg = MP.db and MP.db.modules and MP.db.modules.runSummary
-        if not cfg or cfg.autoShow ~= false then
-            C_Timer.After(2, function()
-                if MP.RunSummary and MP.RunSummary.Show then
-                    MP.RunSummary:Show(runData)
-                end
-            end)
-        end
     end
 
     RefreshPBDisplay()
@@ -427,8 +469,8 @@ local function OnBossKill(bossName)
     if not splitRow then
         splitRow = CreateFrame("Button", nil, splitFrame)
         splitRow:SetHeight(SPLIT_ROW_H)
-        splitRow:SetPoint("TOPLEFT", splitFrame, "TOPLEFT", 0, -((idx - 1) * SPLIT_ROW_H))
-        splitRow:SetPoint("RIGHT",   splitFrame, "RIGHT",   0, 0)
+        splitRow:SetPoint("TOPLEFT", splitFrame, "TOPLEFT",  0, -((idx - 1) * SPLIT_ROW_H))
+        splitRow:SetPoint("RIGHT",   splitFrame, "RIGHT",    0, 0)
 
         splitRow.text = splitRow:CreateFontString(nil, "OVERLAY")
         splitRow.text:SetFontObject(MP.Fonts.Body)
@@ -442,7 +484,7 @@ local function OnBossKill(bossName)
 
     splitRow.splitData = splitData
     splitRow.text:SetText(string.format(
-        "|cff6ad4ff%s|r  |cffffd866%s|r  |cff888888Δ%s|r%s",
+        "|cff6ad4ff%s|r  |cffffd866%s|r  |cff888888+%s|r%s",
         displayName,
         MP:FormatTime(splitTime),
         MP:FormatTime(deltaTime),
@@ -473,11 +515,17 @@ function Timer:OnEvent(event, ...)
         MP.MainFrame:SetDungeonInfo(nil, nil)
 
     elseif event == "ENCOUNTER_END" then
-        -- ENCOUNTER_END is the most reliable boss-kill signal in M+.
-        -- It fires once per encounter with the boss name and a success flag.
-        local _, encounterName, _, _, success = ...
-        if self.active and success == 1 then
-            OnBossKill(encounterName or ("Boss " .. (self.bossesKilled + 1)))
+        local encounterID, encounterName, _, _, success = ...
+        -- success can be 1 (number) or true (boolean) depending on the build
+        if self.active and (success == 1 or success == true) then
+            local name = encounterName
+            -- Fall back to encounter journal when the event arg is nil/empty
+            if (not name or name == "") and encounterID and encounterID > 0 then
+                if C_EncounterJournal and C_EncounterJournal.GetEncounterInfo then
+                    name = C_EncounterJournal.GetEncounterInfo(encounterID)
+                end
+            end
+            OnBossKill(name or ("Boss " .. (self.bossesKilled + 1)))
         end
 
     elseif event == "WORLD_STATE_TIMER_START" then
@@ -498,6 +546,9 @@ function Timer:OnFrameReady()
     if Timer.section then
         MP:RegisterMythicOnlySection(Timer.section)
     end
+    -- If EnemyForces loaded before us and has a deferred CreateBarInContainer,
+    -- it will have been called already in CreateUI above.  If Timer loaded first,
+    -- EnemyForces.OnFrameReady will call CreateBarInContainer when it runs.
     if MP:IsInMythicPlus() then
         StartRun()
     end
@@ -519,6 +570,15 @@ function Timer:OnPlayerEnteringWorld()
     end
 end
 
+function Timer:OnDisable()
+    self.active = false
+    tickFrame:Hide()
+    if Timer.section then Timer.section:Hide() end
+    ClearLiveText()
+    if timerBar then timerBar:Reset() end
+    if MP.MainFrame then MP.MainFrame:Layout() end
+end
+
 function Timer:OnConfigReset()
     if timerBar then timerBar:Reset() end
 end
@@ -529,6 +589,22 @@ end
 function Timer:GetElapsed()    return self.elapsed    end
 function Timer:GetTimeLimit()  return self.timeLimit  end
 function Timer:GetBossSplits() return self.bossSplits end
+
+--- Hides split rows and resets section height.
+--- Called at the start of each new run and by external callers on demand.
+function Timer:ClearBossSplits()
+    if splitTexts then
+        for _, row in ipairs(splitTexts) do
+            row:Hide()
+            if row.splitData then row.splitData = nil end
+        end
+    end
+    if splitFrame then splitFrame:SetHeight(1) end
+    if self.section then
+        self.section:SetHeight(SECTION_BASE_H)
+        MP.MainFrame:Layout()
+    end
+end
 
 --- Called by Demo.lua to trigger a boss-kill with full UI output.
 --- OnBossKill is local so this thin wrapper is the only public path.
@@ -545,6 +621,7 @@ function Timer:StopDemo()
     self.bossSplits   = {}
     self.bossesKilled = 0
     ClearLiveText()
+    if pbText then pbText:SetText("") end
     if timerBar then timerBar:Reset() end
     if splitTexts then
         for _, row in ipairs(splitTexts) do
@@ -590,6 +667,12 @@ function Timer:StartDemo(config)
     end
 
     ClearLiveText()
+    if affixRow then
+        affixRow:SetText(string.format(
+            "|cffffff00[%d]|r Fortified · Spiteful · Grievous",
+            self.keyLevel or 0
+        ))
+    end
 
     if Timer.section then
         Timer.section:SetHeight(SECTION_BASE_H)
@@ -602,8 +685,7 @@ function Timer:RefreshUI()
     if timerBar then
         timerBar:UpdateTimer(self.elapsed, self.timeLimit)
     end
-    UpdateThresholdText(self.elapsed)
-    UpdatePaceText(self.elapsed)
+    UpdateDeathRow()
 end
 
 ----------------------------------------------------------------------

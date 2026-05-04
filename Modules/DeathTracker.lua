@@ -28,109 +28,31 @@ local DeathTracker = {
 }
 
 ----------------------------------------------------------------------
--- UI
+-- UI — deaths shown in the MainFrame header, no standalone section
 ----------------------------------------------------------------------
-local section, deathCountText, penaltyText
-
-local function CreateUI()
-    section = MP.MainFrame:CreateSection(MP.L and MP.L["DEATHS"] or "Deaths", 46)
-
-    local skull = section:CreateTexture(nil, "ARTWORK")
-    skull:SetTexture("Interface\\TargetingFrame\\UI-TargetingFrame-Skull")
-    skull:SetSize(16, 16)
-    skull:SetPoint("TOPLEFT", 0, -26)
-
-    -- Death count
-    deathCountText = section:CreateFontString(nil, "OVERLAY")
-    deathCountText:SetFontObject(MP.Fonts.Number)
-    deathCountText:SetPoint("LEFT", skull, "RIGHT", 4, 0)
-    deathCountText:SetTextColor(0.95, 0.95, 0.95)
-    deathCountText:SetText("0")
-
-    -- Penalty text
-    penaltyText = section:CreateFontString(nil, "OVERLAY")
-    penaltyText:SetFontObject(MP.Fonts.Small)
-    penaltyText:SetPoint("LEFT", deathCountText, "RIGHT", 8, 0)
-    penaltyText:SetTextColor(MP.COLORS.danger.r, MP.COLORS.danger.g, MP.COLORS.danger.b)
-
-    -- Tooltip on hover (shows death log)
-    section:EnableMouse(true)
-    section:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("|cff00ccff" .. MP.L["DEATH_LOG"] .. "|r", 1, 1, 1)
-
-        if #DeathTracker.deathLog == 0 then
-            GameTooltip:AddLine(MP.L["NO_DEATHS"], 0.5, 0.5, 0.5)
-        else
-            for _, entry in ipairs(DeathTracker.deathLog) do
-                local nameStr = entry.classColoredName or entry.name
-                local timeStr = MP:FormatTime(entry.elapsed)
-                GameTooltip:AddDoubleLine(
-                    nameStr,
-                    timeStr,
-                    1, 1, 1,
-                    0.6, 0.62, 0.7
-                )
-            end
-        end
-
-        GameTooltip:AddLine(" ")
-        local penalty = 0
+local function UpdateDeathHeader()
+    if not (MP.MainFrame and MP.MainFrame.SetDeathInfo) then return end
+    local count = DeathTracker.count
+    if count > 0 then
+        local penalty, isPenalized = 0, false
         if MP.DungeonData then
-            penalty = MP.DungeonData:GetDeathPenalty(DeathTracker.keyLevel)
+            penalty     = MP.DungeonData:GetDeathPenalty(DeathTracker.keyLevel)
+            isPenalized = MP.DungeonData:DeathsPenalized(DeathTracker.keyLevel)
         end
-        local totalPenalty = DeathTracker.count * penalty
-        GameTooltip:AddDoubleLine(
-            MP.L["DEATH_PENALTY"],
-            "-" .. MP:FormatTime(totalPenalty),
-            0.9, 0.9, 0.9,
-            1.0, 0.25, 0.25
-        )
-        GameTooltip:Show()
-    end)
-    section:SetScript("OnLeave", function()
-        GameTooltip:Hide()
-    end)
-
-    MP.MainFrame:AddSection(section)
-    return section
+        local totalPenalty = (isPenalized and penalty > 0) and count * penalty or 0
+        MP.MainFrame:SetDeathInfo(count, totalPenalty)
+    else
+        MP.MainFrame:SetDeathInfo(0, 0)
+    end
 end
 
 ----------------------------------------------------------------------
 -- Update Display
 ----------------------------------------------------------------------
 local function UpdateDisplay()
-    -- Use authoritative API count (whitelisted, always reliable)
     local apiDeaths = C_ChallengeMode.GetDeathCount()
-    if apiDeaths then
-        DeathTracker.count = apiDeaths
-    end
-
-    if deathCountText then
-        deathCountText:SetText(tostring(DeathTracker.count))
-        if DeathTracker.count > 0 then
-            deathCountText:SetTextColor(1.0, 0.25, 0.25)
-        else
-            deathCountText:SetTextColor(0.3, 1.0, 0.4)
-        end
-    end
-
-    if penaltyText and DeathTracker.count > 0 then
-        local penalty = 0
-        local isPenalized = false
-        if MP.DungeonData then
-            penalty = MP.DungeonData:GetDeathPenalty(DeathTracker.keyLevel)
-            isPenalized = MP.DungeonData:DeathsPenalized(DeathTracker.keyLevel)
-        end
-        local totalPenalty = DeathTracker.count * penalty
-        if isPenalized and penalty > 0 then
-            penaltyText:SetText(string.format("-%s (-%ds ea)", MP:FormatTime(totalPenalty), penalty))
-        else
-            penaltyText:SetText("|cff4dff4dNo penalty|r")
-        end
-    elseif penaltyText then
-        penaltyText:SetText("")
-    end
+    if apiDeaths then DeathTracker.count = apiDeaths end
+    UpdateDeathHeader()
 end
 
 ----------------------------------------------------------------------
@@ -266,16 +188,15 @@ function DeathTracker:OnEvent(event, ...)
     end
 end
 
+function DeathTracker:OnDisable()
+    self.active = false
+    pollFrame:Hide()
+    if MP.MainFrame and MP.MainFrame.SetDeathInfo then
+        MP.MainFrame:SetDeathInfo(0, 0)
+    end
+end
+
 function DeathTracker:OnFrameReady()
-    if not MP.MainFrame or not MP.MainFrame.frame then
-        MP:Debug("MainFrame not ready, skipping DeathTracker UI creation")
-        return
-    end
-    CreateUI()
-    -- Register as M+-only section
-    if section then
-        MP:RegisterMythicOnlySection(section)
-    end
     if MP:IsInMythicPlus() then
         self.active   = true
         self.keyLevel = MP:GetActiveKeyLevel()

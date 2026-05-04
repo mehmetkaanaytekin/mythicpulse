@@ -1,404 +1,701 @@
 --[[
     MythicPulse - Config Panel
-    Settings UI panel registered in Interface > AddOns.
+    Custom standalone settings panel with left sidebar and scrollable content pages.
 ]]
 
 local _, MP = ...
 
 MP.ConfigPanel = {}
 
-local PANEL_WIDTH  = 400
-local ROW_HEIGHT   = 26
-local INDENT       = 16
+----------------------------------------------------------------------
+-- Layout constants
+----------------------------------------------------------------------
+local PANEL_W   = 680
+local PANEL_H   = 540
+local SIDEBAR_W = 160
+local TITLE_H   = 36
+local PAD       = 14
+local ROW_H     = 26
+local SLIDER_H  = 54
+-- Usable width inside the scroll content area:
+--   PANEL_W - SIDEBAR_W - sidebar_divider(1) - left_gap(4) - right_gap(4) - scrollbar(22) = ~489
+-- Use a conservative constant for two-column slider math.
+local CONTENT_W = PANEL_W - SIDEBAR_W - 50   -- 470
 
 ----------------------------------------------------------------------
--- Checkbox Factory
+-- Checkbox factory
 ----------------------------------------------------------------------
-local function CreateCheckbox(parent, label, x, y, settingPath, onChange)
+local function MakeCheckbox(parent, label, x, y, settingPath, onChange)
     local cb = CreateFrame("CheckButton", nil, parent, "InterfaceOptionsCheckButtonTemplate")
     cb:SetPoint("TOPLEFT", x, y)
     cb.Text:SetText(label)
     cb.Text:SetFontObject(MP.Fonts.Body)
-
     cb:SetScript("OnClick", function(self)
-        local checked = self:GetChecked()
-        MP:SetSetting(settingPath, checked)
-        if onChange then onChange(checked) end
+        local v = self:GetChecked()
+        MP:SetSetting(settingPath, v)
+        if onChange then onChange(v) end
     end)
-
     function cb:Refresh()
         self:SetChecked(MP:GetSetting(settingPath))
     end
-
     return cb
 end
 
 ----------------------------------------------------------------------
--- Slider Factory
+-- Slider factory
 ----------------------------------------------------------------------
-local function CreateSlider(parent, label, x, y, minVal, maxVal, step, settingPath, onChange)
-    local slider = CreateFrame("Slider", nil, parent, "OptionsSliderTemplate")
-    slider:SetPoint("TOPLEFT", x, y)
-    slider:SetWidth(200)
-    slider:SetMinMaxValues(minVal, maxVal)
-    slider:SetValueStep(step)
-    slider:SetObeyStepOnDrag(true)
+local function MakeSlider(parent, label, x, y, w, minVal, maxVal, step, settingPath, onChange)
+    local lbl = parent:CreateFontString(nil, "OVERLAY")
+    lbl:SetFontObject(MP.Fonts.Small)
+    lbl:SetTextColor(0.75, 0.75, 0.80)
+    lbl:SetPoint("TOPLEFT", x, y)
+    lbl:SetText(label)
 
-    slider.Text:SetText(label)
-    slider.Low:SetText(tostring(minVal))
-    slider.High:SetText(tostring(maxVal))
+    local sl = CreateFrame("Slider", nil, parent, "OptionsSliderTemplate")
+    sl:SetPoint("TOPLEFT", x, y - 16)
+    sl:SetWidth(w or 200)
+    sl:SetMinMaxValues(minVal, maxVal)
+    sl:SetValueStep(step)
+    sl:SetObeyStepOnDrag(true)
+    if sl.Text  then sl.Text:SetText("") end
+    if sl.Low   then sl.Low:SetText(tostring(minVal)) end
+    if sl.High  then sl.High:SetText(tostring(maxVal)) end
 
-    slider.valueText = slider:CreateFontString(nil, "OVERLAY")
-    slider.valueText:SetFontObject(MP.Fonts.Body)
-    slider.valueText:SetPoint("TOP", slider, "BOTTOM", 0, -2)
+    sl.valText = sl:CreateFontString(nil, "OVERLAY")
+    sl.valText:SetFontObject(MP.Fonts.Small)
+    sl.valText:SetPoint("TOP", sl, "BOTTOM", 0, -2)
 
-    slider:SetScript("OnValueChanged", function(self, value)
-        value = math.floor(value / step + 0.5) * step
-        self.valueText:SetText(string.format("%.1f", value))
-        MP:SetSetting(settingPath, value)
-        if onChange then onChange(value) end
+    local fmt = (step < 1) and "%.2f" or "%.0f"
+    sl:SetScript("OnValueChanged", function(self, v)
+        v = math.floor(v / step + 0.5) * step
+        self.valText:SetText(string.format(fmt, v))
+        MP:SetSetting(settingPath, v)
+        if onChange then onChange(v) end
     end)
-
-    function slider:Refresh()
-        local val = MP:GetSetting(settingPath) or minVal
-        self:SetValue(val)
-        self.valueText:SetText(string.format("%.1f", val))
+    function sl:Refresh()
+        local v = MP:GetSetting(settingPath) or minVal
+        self:SetValue(v)
+        self.valText:SetText(string.format(fmt, v))
     end
-
-    return slider
+    return sl
 end
 
 ----------------------------------------------------------------------
--- Build Panel
+-- Cycle button factory
 ----------------------------------------------------------------------
-local function BuildPanel()
-    -- The Settings canvas frame must be a top-level UIParent child with an
-    -- explicit size; SettingsPanel resizes it dynamically when shown.
-    local panel = CreateFrame("Frame", "MythicPulseConfigPanel", UIParent)
-    panel:SetSize(PANEL_WIDTH + 220, 620)
-    panel:Hide()
-    panel.name = "MythicPulse"
-    -- Stubs the Settings API expects on canvas categories
-    panel.OnCommit  = function() end
-    panel.OnDefault = function() end
-    panel.OnRefresh = function() end
+local function MakeCycleBtn(parent, label, x, y, options, settingPath, onChange)
+    local lbl = parent:CreateFontString(nil, "OVERLAY")
+    lbl:SetFontObject(MP.Fonts.Small)
+    lbl:SetTextColor(0.75, 0.75, 0.80)
+    lbl:SetPoint("TOPLEFT", x, y)
+    lbl:SetText(label)
 
-    -- Scrollable body to prevent overflow on smaller settings canvases.
-    local scrollFrame = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", panel, "TOPLEFT", 6, -6)
-    scrollFrame:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -28, 8)
+    local btn = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+    btn:SetSize(140, 22)
+    btn:SetPoint("TOPLEFT", x, y - 18)
 
-    local content = CreateFrame("Frame", nil, scrollFrame)
-    -- Derive content width from panel width so columns adapt better.
-    local contentWidth = math.max(PANEL_WIDTH + 40, panel:GetWidth() - 44)
-    content:SetSize(contentWidth, 1)
-    scrollFrame:SetScrollChild(content)
-
-    -- Title
-    local title = content:CreateFontString(nil, "OVERLAY")
-    title:SetFontObject(MP.Fonts.Title)
-    title:SetPoint("TOPLEFT", 16, -16)
-    title:SetTextColor(MP.COLORS.brand.r, MP.COLORS.brand.g, MP.COLORS.brand.b)
-    title:SetText("MythicPulse Settings")
-
-    -- Version subtitle
-    local ver = content:CreateFontString(nil, "OVERLAY")
-    ver:SetFontObject(MP.Fonts.Small)
-    ver:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -4)
-    ver:SetTextColor(0.5, 0.5, 0.55)
-    ver:SetText("v" .. (MP.version or "1.0.0"))
-
-    local y = -60
-    panel.controls = {}
-
-    -- Two-column slider layout constants
-    local COL1_X          = 16 + INDENT
-    local SLIDER_WIDTH    = 200
-    local RIGHT_COL_PAD   = 24
-    local MIN_COL_GAP     = 24
-    local COL2_X          = math.max(
-        COL1_X + SLIDER_WIDTH + MIN_COL_GAP,
-        contentWidth - SLIDER_WIDTH - RIGHT_COL_PAD
-    )
-    local SLIDER_ROW_STEP = 54                   -- vertical space per slider row
-    local SLIDER_TOP_PAD  = 14                   -- space for the slider's top label
-
-    local function AddSliderRow(left, right)
-        if left then
-            local s = CreateSlider(content, left.label, COL1_X, y - SLIDER_TOP_PAD,
-                left.min, left.max, left.step, left.path, left.onChange)
-            table.insert(panel.controls, s)
-        end
-        if right then
-            local s = CreateSlider(content, right.label, COL2_X, y - SLIDER_TOP_PAD,
-                right.min, right.max, right.step, right.path, right.onChange)
-            table.insert(panel.controls, s)
-        end
-        y = y - SLIDER_ROW_STEP
-    end
-
-    -- === General Section ===
-    local genHeader = content:CreateFontString(nil, "OVERLAY")
-    genHeader:SetFontObject(MP.Fonts.Header)
-    genHeader:SetPoint("TOPLEFT", 16, y)
-    genHeader:SetTextColor(0.9, 0.9, 0.9)
-    genHeader:SetText("General")
-    y = y - ROW_HEIGHT
-
-    local lockCB = CreateCheckbox(content, "Lock Frame Position", COL1_X, y, "locked")
-    table.insert(panel.controls, lockCB)
-    y = y - ROW_HEIGHT
-
-    local bgCB = CreateCheckbox(content, "Show Panel Backgrounds", COL1_X, y, "showBackdrop")
-    bgCB:SetScript("OnClick", function(self)
-        MP:SetSetting("showBackdrop", self:GetChecked())
-        if MP.RefreshAllBackdrops then MP:RefreshAllBackdrops() end
-        if MP.UtilityFrame and MP.UtilityFrame.ApplyBackdropState then
-            MP.UtilityFrame:ApplyBackdropState()
-        end
-        if MP.UtilityFrame and MP.UtilityFrame.frame and MP.UtilityFrame.frame:IsShown() and MP.UtilityFrame.RefreshContent then
-            MP.UtilityFrame:RefreshContent()
-        end
+    local function GetCur() return MP:GetSetting(settingPath) or options[1] end
+    local function Refresh() btn:SetText(GetCur()) end
+    btn:SetScript("OnClick", function()
+        local cur, idx = GetCur(), 1
+        for i, v in ipairs(options) do if v == cur then idx = i; break end end
+        local nxt = options[(idx % #options) + 1]
+        MP:SetSetting(settingPath, nxt)
+        Refresh()
+        if onChange then onChange(nxt) end
     end)
-    table.insert(panel.controls, bgCB)
-    y = y - ROW_HEIGHT
+    function btn:Refresh() Refresh() end
+    Refresh()
+    return btn
+end
 
-    -- Scale sliders (3 frames × 2 = 6 sliders in a 2-column grid → 3 rows)
-    -- Each slider applies the change immediately to the corresponding frame.
-    AddSliderRow(
-        {
-            label = "Main HUD Scale",  min = 0.5, max = 2.0, step = 0.1,
-            path = "mainFrame.scale",
-            onChange = function(v)
-                if MP.MainFrame and MP.MainFrame.frame then MP.MainFrame.frame:SetScale(v) end
-            end,
-        },
-        {
-            label = "Main HUD Opacity", min = 0.3, max = 1.0, step = 0.05,
-            path = "mainFrame.alpha",
-            onChange = function(v)
-                if MP.MainFrame and MP.MainFrame.frame then MP.MainFrame.frame:SetAlpha(v) end
-            end,
-        }
-    )
-    AddSliderRow(
-        {
-            label = "Party CDs Scale", min = 0.5, max = 2.0, step = 0.1,
-            path = "trackerFrame.scale",
-            onChange = function(v)
-                if MP.TrackerFrame and MP.TrackerFrame.frame then MP.TrackerFrame.frame:SetScale(v) end
-            end,
-        },
-        {
-            label = "Party CDs Opacity", min = 0.3, max = 1.0, step = 0.05,
-            path = "trackerFrame.alpha",
-            onChange = function(v)
-                if MP.TrackerFrame and MP.TrackerFrame.frame then MP.TrackerFrame.frame:SetAlpha(v) end
-            end,
-        }
-    )
-    AddSliderRow(
-        {
-            label = "Interrupts Scale", min = 0.5, max = 2.0, step = 0.1,
-            path = "interruptFrame.scale",
-            onChange = function(v)
-                if MP.InterruptFrame and MP.InterruptFrame.frame then MP.InterruptFrame.frame:SetScale(v) end
-            end,
-        },
-        {
-            label = "Interrupts Opacity", min = 0.3, max = 1.0, step = 0.05,
-            path = "interruptFrame.alpha",
-            onChange = function(v)
-                if MP.InterruptFrame and MP.InterruptFrame.frame then MP.InterruptFrame.frame:SetAlpha(v) end
-            end,
-        }
-    )
+----------------------------------------------------------------------
+-- Page factory — each category gets one plain Frame (no scrollbar)
+----------------------------------------------------------------------
+local HALF_W = math.floor((CONTENT_W - PAD * 3) / 2)
 
-    y = y - 4  -- small gap between sections
+local function MakePage(container)
+    local body = CreateFrame("Frame", nil, container)
+    body:SetAllPoints(container)
+    body:Hide()
 
-    -- === Display (font + icon scaling) ===
-    local dispHeader = content:CreateFontString(nil, "OVERLAY")
-    dispHeader:SetFontObject(MP.Fonts.Header)
-    dispHeader:SetPoint("TOPLEFT", 16, y)
-    dispHeader:SetTextColor(0.9, 0.9, 0.9)
-    dispHeader:SetText("Display")
-    y = y - ROW_HEIGHT
+    local ctrls = {}
+    local y = -PAD
 
-    AddSliderRow(
-        {
-            label = "Font Scale", min = 0.7, max = 2.0, step = 0.05,
-            path = "fontScale",
-            onChange = function()
-                if MP.Fonts and MP.Fonts.Apply then MP.Fonts:Apply() end
-            end,
-        },
-        {
-            label = "Party CD Icon Size", min = 20, max = 48, step = 1,
-            path = "modules.partyCooldowns.iconSize",
-        }
-    )
+    local p = { body = body, controls = ctrls, y = y }
 
-    AddSliderRow(
-        {
-            label = "Battle Res/BL Icon Size", min = 28, max = 56, step = 1,
-            path = "modules.combatRes.iconSize",
-            onChange = function()
-                MP:Print("|cff88ccffReload UI (/reload)|r to apply Battle Res icon size changes.")
-            end,
-        },
-        nil
-    )
+    function p:Show() body:Show() end
+    function p:Hide() body:Hide() end
 
-    y = y - 4
+    -- Section header with a faint rule
+    function p:Header(text)
+        local fs = body:CreateFontString(nil, "OVERLAY")
+        fs:SetFontObject(MP.Fonts.Header)
+        fs:SetTextColor(MP.COLORS.brand.r, MP.COLORS.brand.g, MP.COLORS.brand.b)
+        fs:SetPoint("TOPLEFT", PAD, self.y)
+        fs:SetText(text)
+        self.y = self.y - 22
 
-    -- === Module Toggles ===
-    local modHeader = content:CreateFontString(nil, "OVERLAY")
-    modHeader:SetFontObject(MP.Fonts.Header)
-    modHeader:SetPoint("TOPLEFT", 16, y)
-    modHeader:SetTextColor(0.9, 0.9, 0.9)
-    modHeader:SetText("Modules")
-    y = y - ROW_HEIGHT
-
-    -- Helper: creates an onChange that enables/disables the runtime module
-    local function MakeModuleToggle(moduleName)
-        return function(checked)
-            if checked then
-                MP:EnableModule(moduleName)
-            else
-                MP:DisableModule(moduleName)
-            end
-        end
+        local rule = body:CreateTexture(nil, "ARTWORK")
+        rule:SetTexture("Interface\\Buttons\\WHITE8x8")
+        rule:SetHeight(1)
+        rule:SetPoint("TOPLEFT",  PAD, self.y)
+        rule:SetPoint("TOPRIGHT", body, "TOPRIGHT", -PAD, self.y)
+        rule:SetVertexColor(MP.COLORS.brand.r, MP.COLORS.brand.g, MP.COLORS.brand.b, 0.25)
+        self.y = self.y - 10
     end
 
-    local moduleList = {
-        { label = "Dungeon Timer",       path = "modules.timer.enabled",            modName = "Timer" },
-        { label = "Death Tracker",       path = "modules.deathTracker.enabled",     modName = "DeathTracker" },
-        { label = "Enemy Forces",        path = "modules.enemyForces.enabled",      modName = "EnemyForces" },
-        { label = "Affix Display",       path = "modules.affixDisplay.enabled",     modName = "AffixDisplay" },
-        { label = "Keystone Tracker",    path = "modules.keystoneTracker.enabled",  modName = "KeystoneTracker" },
-        { label = "Party Cooldowns",     path = "modules.partyCooldowns.enabled",   modName = "PartyCooldowns" },
-        { label = "Interrupt Tracker",   path = "modules.interruptTracker.enabled", modName = "InterruptTracker" },
-        { label = "Dispel Tracker",      path = "modules.dispelTracker.enabled",    modName = "DispelTracker" },
-        { label = "Trinket Tracker",     path = "modules.trinketTracker.enabled",   modName = "TrinketTracker" },
-        { label = "Auto Gossip",         path = "modules.autoGossip.enabled",       modName = "AutoGossip" },
-        { label = "Battle Res Tracker",  path = "modules.combatRes.enabled",        modName = "CombatRes" },
-        { label = "Run Summary Popup",   path = "modules.runSummary.autoShow" },
-        { label = "Dungeon History",     path = "modules.dungeonHistory.enabled",   modName = "DungeonHistory" },
-        { label = "Auto Keystone Slot",  path = "modules.autoSlot.enabled",         modName = "AutoSlot" },
-        { label = "Dungeon Teleports",   path = "modules.dungeonTeleport.enabled",  modName = "DungeonTeleport" },
-    }
-
-    -- Two-column layout: half on the left, remainder on the right
-    local modStartY    = y
-    local splitIndex   = math.ceil(#moduleList / 2)
-    local leftEndY     = modStartY
-
-    for i, mod in ipairs(moduleList) do
-        local toggle = mod.modName and MakeModuleToggle(mod.modName) or nil
-        if i <= splitIndex then
-            local cb = CreateCheckbox(content, mod.label, COL1_X, leftEndY, mod.path, toggle)
-            table.insert(panel.controls, cb)
-            leftEndY = leftEndY - ROW_HEIGHT
-        else
-            local rowY = modStartY - ((i - splitIndex - 1) * ROW_HEIGHT)
-            local cb = CreateCheckbox(content, mod.label, COL2_X, rowY, mod.path, toggle)
-            table.insert(panel.controls, cb)
-        end
+    -- Checkbox
+    function p:Check(label, path, onChange)
+        local cb = MakeCheckbox(body, label, PAD, self.y, path, onChange)
+        table.insert(ctrls, cb)
+        self.y = self.y - ROW_H
+        return cb
     end
 
-    y = leftEndY - 10
+    -- Single full-width slider
+    function p:Slider(label, minV, maxV, step, path, onChange)
+        local s = MakeSlider(body, label, PAD, self.y, 200, minV, maxV, step, path, onChange)
+        table.insert(ctrls, s)
+        self.y = self.y - SLIDER_H
+        return s
+    end
 
-    -- === Reset Button ===
-    local resetBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
-    resetBtn:SetSize(140, 24)
-    resetBtn:SetPoint("TOPLEFT", 16 + INDENT, y)
-    resetBtn:SetText("Reset All Settings")
-    resetBtn:SetScript("OnClick", function()
-        StaticPopup_Show("MYTHICPULSE_RESET_CONFIRM")
-    end)
+    -- Two sliders side by side
+    function p:SliderRow(L, R)
+        if L then
+            local s = MakeSlider(body, L.label, PAD, self.y, HALF_W, L.min, L.max, L.step, L.path, L.onChange)
+            table.insert(ctrls, s)
+        end
+        if R then
+            local s = MakeSlider(body, R.label, PAD * 2 + HALF_W, self.y, HALF_W, R.min, R.max, R.step, R.path, R.onChange)
+            table.insert(ctrls, s)
+        end
+        self.y = self.y - SLIDER_H
+    end
 
-    y = y - 34
-    local contentHeight = math.max(1, -y + 12)
-    content:SetHeight(contentHeight)
+    -- Two cycle buttons side by side
+    function p:CycleRow(L, R)
+        if L then
+            local b = MakeCycleBtn(body, L.label, PAD, self.y, L.options, L.path, L.onChange)
+            table.insert(ctrls, b)
+        end
+        if R then
+            local b = MakeCycleBtn(body, R.label, PAD * 2 + HALF_W, self.y, R.options, R.path, R.onChange)
+            table.insert(ctrls, b)
+        end
+        self.y = self.y - 46
+    end
 
-    -- Confirmation dialog
-    StaticPopupDialogs["MYTHICPULSE_RESET_CONFIRM"] = {
-        text = "Reset all MythicPulse settings to defaults?",
-        button1 = "Yes",
-        button2 = "No",
-        OnAccept = function()
-            MP:ResetConfig()
-            for _, ctrl in ipairs(panel.controls) do
-                if ctrl.Refresh then ctrl:Refresh() end
-            end
-        end,
-        timeout = 0,
-        whileDead = true,
-        hideOnEscape = true,
-    }
+    -- Small gap
+    function p:Gap(h) self.y = self.y - (h or 10) end
+
+    -- Muted note/caption
+    function p:Note(text)
+        local fs = body:CreateFontString(nil, "OVERLAY")
+        fs:SetFontObject(MP.Fonts.Small)
+        fs:SetTextColor(0.52, 0.52, 0.58)
+        fs:SetPoint("TOPLEFT", PAD, self.y)
+        fs:SetText(text)
+        self.y = self.y - 18
+        return fs
+    end
+
+    -- Standard button
+    function p:Btn(label, w, onClick)
+        local btn = CreateFrame("Button", nil, body, "UIPanelButtonTemplate")
+        btn:SetSize(w or 150, 24)
+        btn:SetPoint("TOPLEFT", PAD, self.y)
+        btn:SetText(label)
+        btn:SetScript("OnClick", onClick)
+        self.y = self.y - 30
+        return btn
+    end
+
+    -- No-op: body fills container via SetAllPoints, no explicit height needed
+    function p:Done() end
 
     -- Refresh all controls
-    function panel:Refresh()
-        for _, ctrl in ipairs(self.controls) do
-            if ctrl.Refresh then ctrl:Refresh() end
+    function p:Refresh()
+        for _, c in ipairs(ctrls) do
+            if c.Refresh then c:Refresh() end
         end
     end
 
-    panel:SetScript("OnShow", function(self)
-        self:Refresh()
-    end)
-
-    return panel
+    return p
 end
 
 ----------------------------------------------------------------------
--- Register with Settings UI
+-- Sidebar button factory
+----------------------------------------------------------------------
+local function MakeSidebarBtn(sidebar, label, yOff, onClick)
+    local btn = CreateFrame("Button", nil, sidebar)
+    btn:SetHeight(36)
+    btn:SetPoint("TOPLEFT",  sidebar, "TOPLEFT",  4, yOff)
+    btn:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", -4, yOff)
+
+    btn._bg = btn:CreateTexture(nil, "BACKGROUND")
+    btn._bg:SetAllPoints()
+    btn._bg:SetTexture("Interface\\Buttons\\WHITE8x8")
+    btn._bg:SetVertexColor(0, 0, 0, 0)
+
+    local lbl = btn:CreateFontString(nil, "OVERLAY")
+    lbl:SetFontObject(MP.Fonts.Body)
+    lbl:SetTextColor(0.78, 0.78, 0.84)
+    lbl:SetJustifyH("LEFT")
+    lbl:SetPoint("LEFT", btn, "LEFT", 14, 0)
+    btn._lbl = lbl
+    lbl:SetText(label)
+
+    btn:SetScript("OnEnter", function(self)
+        if not self._sel then
+            self._bg:SetVertexColor(0.15, 0.15, 0.22, 0.55)
+            lbl:SetTextColor(1, 1, 1)
+        end
+    end)
+    btn:SetScript("OnLeave", function(self)
+        if not self._sel then
+            self._bg:SetVertexColor(0, 0, 0, 0)
+            lbl:SetTextColor(0.78, 0.78, 0.84)
+        end
+    end)
+    btn:SetScript("OnClick", onClick)
+
+    function btn:Select(v)
+        self._sel = v
+        if v then
+            local r, g, b = MP.COLORS.brand.r, MP.COLORS.brand.g, MP.COLORS.brand.b
+            self._bg:SetVertexColor(r * 0.22, g * 0.22, b * 0.22, 0.85)
+            lbl:SetTextColor(1, 1, 1)
+        else
+            self._bg:SetVertexColor(0, 0, 0, 0)
+            lbl:SetTextColor(0.78, 0.78, 0.84)
+        end
+    end
+
+    return btn
+end
+
+----------------------------------------------------------------------
+-- Build the full panel
+----------------------------------------------------------------------
+local function BuildPanel()
+    local f = CreateFrame("Frame", "MythicPulseConfigPanel", UIParent, "BackdropTemplate")
+    f:SetSize(PANEL_W, PANEL_H)
+    f:SetFrameStrata("HIGH")
+    f:SetFrameLevel(100)
+    f:SetClampedToScreen(true)
+    f:SetMovable(true)
+    f:EnableMouse(true)
+    f:SetPoint("CENTER")
+    f:Hide()
+
+    -- Register with UISpecialFrames so Escape closes the panel
+    tinsert(UISpecialFrames, "MythicPulseConfigPanel")
+
+    MP:CreateBackdrop(f, MP.COLORS.bgDark)
+    MP:CreateGlow(f, MP.COLORS.borderGlow, 3)
+
+    -- Drag
+    f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", function(self) self:StartMoving() end)
+    f:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        if MP.db then
+            if not MP.db.configPanel then MP.db.configPanel = {} end
+            local pt, _, rpt, x, y = self:GetPoint()
+            MP.db.configPanel.point    = pt
+            MP.db.configPanel.relPoint = rpt
+            MP.db.configPanel.x        = x
+            MP.db.configPanel.y        = y
+        end
+    end)
+
+    -- Title bar background strip
+    local titleBg = f:CreateTexture(nil, "BACKGROUND", nil, 1)
+    titleBg:SetTexture("Interface\\Buttons\\WHITE8x8")
+    titleBg:SetPoint("TOPLEFT",  f, "TOPLEFT",  1, -1)
+    titleBg:SetPoint("TOPRIGHT", f, "TOPRIGHT", -1, -1)
+    titleBg:SetHeight(TITLE_H)
+    titleBg:SetVertexColor(0, 0, 0, 0.40)
+
+    -- Title text
+    local titleText = f:CreateFontString(nil, "OVERLAY")
+    titleText:SetFontObject(MP.Fonts.Header)
+    titleText:SetTextColor(MP.COLORS.brand.r, MP.COLORS.brand.g, MP.COLORS.brand.b)
+    titleText:SetPoint("TOPLEFT", f, "TOPLEFT", PAD, -(TITLE_H / 2 - 7))
+    titleText:SetText("MythicPulse  |cff666688Settings|r")
+
+    -- Close button
+    local closeBtn = CreateFrame("Button", nil, f, "UIPanelCloseButton")
+    closeBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", 2, 2)
+    closeBtn:SetScript("OnClick", function() f:Hide() end)
+
+    -- Hairline below title bar
+    local hline = f:CreateTexture(nil, "ARTWORK")
+    hline:SetHeight(1)
+    hline:SetPoint("TOPLEFT",  f, "TOPLEFT",  1, -TITLE_H)
+    hline:SetPoint("TOPRIGHT", f, "TOPRIGHT", -1, -TITLE_H)
+    hline:SetTexture("Interface\\Buttons\\WHITE8x8")
+    hline:SetVertexColor(MP.COLORS.border.r, MP.COLORS.border.g, MP.COLORS.border.b, 0.70)
+
+    -- Sidebar
+    local sidebar = CreateFrame("Frame", nil, f)
+    sidebar:SetPoint("TOPLEFT",    f, "TOPLEFT",    1, -(TITLE_H + 1))
+    sidebar:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 1, 1)
+    sidebar:SetWidth(SIDEBAR_W)
+
+    local sidebarBg = sidebar:CreateTexture(nil, "BACKGROUND")
+    sidebarBg:SetAllPoints()
+    sidebarBg:SetTexture("Interface\\Buttons\\WHITE8x8")
+    sidebarBg:SetVertexColor(0, 0, 0, 0.20)
+
+    -- Vertical divider between sidebar and content
+    local sDiv = f:CreateTexture(nil, "ARTWORK")
+    sDiv:SetWidth(1)
+    sDiv:SetPoint("TOPLEFT",    sidebar, "TOPRIGHT",    0,  0)
+    sDiv:SetPoint("BOTTOMLEFT", sidebar, "BOTTOMRIGHT", 0,  0)
+    sDiv:SetTexture("Interface\\Buttons\\WHITE8x8")
+    sDiv:SetVertexColor(MP.COLORS.border.r, MP.COLORS.border.g, MP.COLORS.border.b, 0.55)
+
+    -- Content area to the right of the sidebar
+    local contentArea = CreateFrame("Frame", nil, f)
+    contentArea:SetPoint("TOPLEFT",     sidebar, "TOPRIGHT",     4, -4)
+    contentArea:SetPoint("BOTTOMRIGHT", f,       "BOTTOMRIGHT", -4,  4)
+
+    -- Pages and sidebar buttons
+    local pages    = {}
+    local sideBtns = {}
+    local active   = nil
+    local sideY    = -8
+
+    local function SelectPage(name)
+        if active and pages[active] then pages[active]:Hide() end
+        active = name
+        if pages[name] then pages[name]:Show() end
+        for n, btn in pairs(sideBtns) do btn:Select(n == name) end
+    end
+
+    local function AddCat(name, builder)
+        local page = MakePage(contentArea)
+        pages[name] = page
+        builder(page)
+        page:Done()
+
+        local btn = MakeSidebarBtn(sidebar, name, sideY, function() SelectPage(name) end)
+        sideBtns[name] = btn
+        sideY = sideY - 38
+    end
+
+    local function RebuildCDs()
+        local pc = MP:GetModule("PartyCooldowns")
+        if pc and pc.RebuildAll then pc:RebuildAll() end
+    end
+
+    ----------------------------------------------------------------
+    -- General
+    ----------------------------------------------------------------
+    AddCat("General", function(p)
+        p:Header("Behavior")
+        p:Check("Lock Frame Position", "locked", function()
+            if MP.MainFrame and MP.MainFrame.UpdateLock then MP.MainFrame:UpdateLock() end
+        end)
+
+        p:Gap(12)
+        p:Header("Actions")
+        p:Btn("Reset HUD Position", 160, function()
+            if MP.MainFrame and MP.MainFrame.ResetPosition then
+                MP.MainFrame:ResetPosition()
+                MP:Print("Main frame position reset.")
+            end
+        end)
+        p:Btn("Reset All Settings", 160, function()
+            StaticPopup_Show("MYTHICPULSE_RESET_CONFIRM")
+        end)
+        p:Btn("Reload UI", 140, ReloadUI)
+
+        p:Gap(12)
+        p:Header("About")
+        p:Note("MythicPulse v" .. (MP.version or "1.0.0"))
+        p:Note("/mp help  —  list all slash commands")
+        p:Note("/mp config  —  toggle this panel")
+    end)
+
+    ----------------------------------------------------------------
+    -- Display
+    ----------------------------------------------------------------
+    AddCat("Display", function(p)
+        p:Header("Main HUD")
+        p:SliderRow(
+            {
+                label = "Scale",
+                min = 0.5, max = 2.0, step = 0.1,
+                path = "mainFrame.scale",
+                onChange = function(v)
+                    if MP.MainFrame and MP.MainFrame.frame then MP.MainFrame.frame:SetScale(v) end
+                end,
+            },
+            {
+                label = "Opacity",
+                min = 0.1, max = 1.0, step = 0.05,
+                path = "mainFrame.alpha",
+                onChange = function(v)
+                    if MP.MainFrame and MP.MainFrame.frame then MP.MainFrame.frame:SetAlpha(v) end
+                end,
+            }
+        )
+
+        p:Gap(4)
+        p:Header("Interrupt Frame")
+        p:SliderRow(
+            {
+                label = "Scale",
+                min = 0.5, max = 2.0, step = 0.1,
+                path = "interruptFrame.scale",
+                onChange = function(v)
+                    if MP.InterruptFrame and MP.InterruptFrame.frame then MP.InterruptFrame.frame:SetScale(v) end
+                end,
+            },
+            {
+                label = "Opacity",
+                min = 0.1, max = 1.0, step = 0.05,
+                path = "interruptFrame.alpha",
+                onChange = function(v)
+                    if MP.InterruptFrame and MP.InterruptFrame.frame then MP.InterruptFrame.frame:SetAlpha(v) end
+                end,
+            }
+        )
+
+        p:Gap(4)
+        p:Header("Font & Icon Sizes")
+        p:SliderRow(
+            {
+                label = "Font Scale",
+                min = 0.7, max = 2.0, step = 0.05,
+                path = "fontScale",
+                onChange = function()
+                    if MP.Fonts and MP.Fonts.Apply then MP.Fonts:Apply() end
+                end,
+            },
+            {
+                label = "Party CD Icon Size",
+                min = 20, max = 48, step = 1,
+                path = "modules.partyCooldowns.iconSize",
+                onChange = function() RebuildCDs() end,
+            }
+        )
+        p:Slider("BRes / BL Icon Size", 28, 56, 1, "modules.combatRes.iconSize", function()
+            MP:Print("|cff88ccffReload UI (/reload)|r to apply icon size changes.")
+        end)
+    end)
+
+    ----------------------------------------------------------------
+    -- Party Cooldowns
+    ----------------------------------------------------------------
+    local GROWTH_OPTS = { "RIGHT", "LEFT", "UP", "DOWN" }
+    local ANCHOR_OPTS = {
+        "LEFT", "RIGHT", "TOP", "BOTTOM",
+        "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT", "CENTER",
+    }
+
+    AddCat("Party CDs", function(p)
+        p:Header("Layout")
+        p:SliderRow(
+            {
+                label = "Icon Gap",
+                min = 0, max = 16, step = 1,
+                path = "modules.partyCooldowns.iconGap",
+                onChange = function() RebuildCDs() end,
+            },
+            {
+                label = "Max Icons",
+                min = 1, max = 12, step = 1,
+                path = "modules.partyCooldowns.maxIcons",
+                onChange = function() RebuildCDs() end,
+            }
+        )
+        p:Slider("Icons Per Row", 1, 12, 1, "modules.partyCooldowns.iconsPerRow", function() RebuildCDs() end)
+        p:Check("Show Dispel Bar", "modules.partyCooldowns.showDispelBar", function() RebuildCDs() end)
+
+        p:Gap(4)
+        p:Header("Anchoring")
+        p:CycleRow(
+            {
+                label   = "Growth Direction",
+                options = GROWTH_OPTS,
+                path    = "modules.partyCooldowns.growthDirection",
+                onChange = function() RebuildCDs() end,
+            },
+            {
+                label   = "Row Anchor Point",
+                options = ANCHOR_OPTS,
+                path    = "modules.partyCooldowns.anchorPoint",
+                onChange = function() RebuildCDs() end,
+            }
+        )
+        p:CycleRow(
+            {
+                label   = "Unit Frame Anchor",
+                options = ANCHOR_OPTS,
+                path    = "modules.partyCooldowns.relativePoint",
+                onChange = function() RebuildCDs() end,
+            },
+            nil
+        )
+        p:SliderRow(
+            {
+                label = "Offset X",
+                min = -100, max = 100, step = 1,
+                path = "modules.partyCooldowns.offsetX",
+                onChange = function() RebuildCDs() end,
+            },
+            {
+                label = "Offset Y",
+                min = -100, max = 100, step = 1,
+                path = "modules.partyCooldowns.offsetY",
+                onChange = function() RebuildCDs() end,
+            }
+        )
+    end)
+
+    ----------------------------------------------------------------
+    -- Combat
+    ----------------------------------------------------------------
+    AddCat("Combat", function(p)
+        p:Header("Interrupts")
+        p:Check("Auto-Announce Kick Rotation", "modules.interruptTracker.autoAnnounce")
+        p:Check("Show Interrupt Tracker in Combat Only", "modules.interruptTracker.showInCombatOnly", function(v)
+            local it = MP:GetModule("InterruptTracker")
+            if it and it.UpdateVisibility then it:UpdateVisibility() end
+        end)
+
+        p:Gap(12)
+        p:Header("Bloodlust / Battle Res")
+        p:Note("Auto-detects: Shaman, Mage, and Hunter (with active pet).")
+        p:Note("More options coming soon.")
+    end)
+
+    ----------------------------------------------------------------
+    -- Utility
+    ----------------------------------------------------------------
+    AddCat("Utility", function(p)
+        p:Header("Dungeon Utility Panel")
+        p:Check("Auto-Show When Entering a Dungeon", "modules.dungeonUtility.autoShow")
+        p:Check("Show Ability Remove Buttons", "modules.dungeonUtility.showRemove")
+        p:Check("Hide Non-Important Entries", "modules.dungeonUtility.hideNotImportant")
+
+        p:Gap(12)
+        p:Header("Run History")
+        p:Slider("Max History Entries", 50, 500, 10, "modules.dungeonHistory.maxEntries")
+        p:Note("Older entries are pruned when the limit is reached.")
+    end)
+
+    ----------------------------------------------------------------
+    -- Modules
+    ----------------------------------------------------------------
+    AddCat("Modules", function(p)
+        p:Header("Enable / Disable Modules")
+        p:Note("Changes take effect after /reload.")
+        p:Gap(4)
+
+        local function ModToggle(modName)
+            return function(checked)
+                if checked then MP:EnableModule(modName) else MP:DisableModule(modName) end
+            end
+        end
+
+        local MODS = {
+            { label = "Dungeon Timer",       path = "modules.timer.enabled",            mod = "Timer" },
+            { label = "Death Tracker",       path = "modules.deathTracker.enabled",     mod = "DeathTracker" },
+            { label = "Enemy Forces",        path = "modules.enemyForces.enabled",      mod = "EnemyForces" },
+            { label = "Keystone Tracker",    path = "modules.keystoneTracker.enabled",  mod = "KeystoneTracker" },
+            { label = "Party Cooldowns",     path = "modules.partyCooldowns.enabled",   mod = "PartyCooldowns" },
+            { label = "Interrupt Tracker",   path = "modules.interruptTracker.enabled", mod = "InterruptTracker" },
+            { label = "Dispel Tracker",      path = "modules.dispelTracker.enabled",    mod = "DispelTracker" },
+            { label = "Trinket Tracker",     path = "modules.trinketTracker.enabled",   mod = "TrinketTracker" },
+            { label = "Auto Gossip (coming soon)", path = "modules.autoGossip.enabled",   mod = "AutoGossip" },
+            { label = "Battle Res Tracker",  path = "modules.combatRes.enabled",        mod = "CombatRes" },
+            { label = "Dungeon History",     path = "modules.dungeonHistory.enabled",   mod = "DungeonHistory" },
+            { label = "Auto Keystone Slot",  path = "modules.autoSlot.enabled",         mod = "AutoSlot" },
+            { label = "Dungeon Teleports",   path = "modules.dungeonTeleport.enabled",  mod = "DungeonTeleport" },
+            { label = "Dungeon Utility",     path = "modules.dungeonUtility.enabled",   mod = "DungeonUtility" },
+        }
+
+        -- Two-column layout
+        local col2x  = PAD * 2 + HALF_W
+        local split  = math.ceil(#MODS / 2)
+        local leftY  = p.y
+        local rightY = p.y
+        for i, m in ipairs(MODS) do
+            local cb
+            if i <= split then
+                cb = MakeCheckbox(p.body, m.label, PAD, leftY, m.path, ModToggle(m.mod))
+                leftY = leftY - ROW_H
+            else
+                cb = MakeCheckbox(p.body, m.label, col2x, rightY, m.path, ModToggle(m.mod))
+                rightY = rightY - ROW_H
+            end
+            table.insert(p.controls, cb)
+        end
+        p.y = math.min(leftY, rightY) - 4
+    end)
+
+    -- Start on General
+    SelectPage("General")
+
+    -- Confirmation dialog (define once)
+    if not StaticPopupDialogs["MYTHICPULSE_RESET_CONFIRM"] then
+        StaticPopupDialogs["MYTHICPULSE_RESET_CONFIRM"] = {
+            text         = "Reset all MythicPulse settings to defaults?",
+            button1      = "Yes",
+            button2      = "No",
+            OnAccept     = function()
+                MP:ResetConfig()
+                for _, page in pairs(pages) do page:Refresh() end
+            end,
+            timeout      = 0,
+            whileDead    = true,
+            hideOnEscape = true,
+        }
+    end
+
+    -- Refresh all pages when shown
+    function f:Refresh()
+        for _, page in pairs(pages) do page:Refresh() end
+    end
+    f:SetScript("OnShow", function(self) self:Refresh() end)
+
+    return f
+end
+
+----------------------------------------------------------------------
+-- Public API
 ----------------------------------------------------------------------
 function MP.ConfigPanel:Init()
-    if self.panel then return end   -- idempotent
-    local panel = BuildPanel()
-    self.panel = panel
+    if self.panel then return end
+    self.panel = BuildPanel()
 
-    -- Register with the modern Settings API (Dragonflight+/Midnight)
-    if Settings and Settings.RegisterCanvasLayoutCategory then
-        local ok, category = pcall(Settings.RegisterCanvasLayoutCategory, panel, panel.name)
-        if ok and category then
-            local ok2 = pcall(Settings.RegisterAddOnCategory, category)
-            if ok2 then
-                self.category = category
-                MP:Debug("ConfigPanel registered with Settings UI:", category:GetID())
-            else
-                MP:Debug("ConfigPanel: RegisterAddOnCategory failed")
-            end
-        else
-            MP:Debug("ConfigPanel: RegisterCanvasLayoutCategory failed:", tostring(category))
+    -- Restore saved position
+    if MP.db and MP.db.configPanel then
+        local cp = MP.db.configPanel
+        if cp.point then
+            self.panel:ClearAllPoints()
+            self.panel:SetPoint(cp.point, UIParent, cp.relPoint or cp.point, cp.x or 0, cp.y or 0)
         end
-    else
-        MP:Debug("ConfigPanel: Settings.RegisterCanvasLayoutCategory not available")
     end
 end
 
 function MP.ConfigPanel:Toggle()
-    -- Lazy-init so /mp config works even if PLAYER_ENTERING_WORLD's
-    -- delayed Init hasn't fired yet (e.g., right after a /reload).
-    if not self.panel then
-        self:Init()
+    if not self.panel then self:Init() end
+    if self.panel:IsShown() then
+        self.panel:Hide()
+    else
+        self.panel:Show()
     end
-    if self.category and Settings and Settings.OpenToCategory then
-        Settings.OpenToCategory(self.category:GetID())
-        return
-    end
-    -- Last-resort fallback: try the legacy InterfaceOptions API or open
-    -- the Settings panel by name.
-    if Settings and Settings.OpenToCategory and self.panel and self.panel.name then
-        Settings.OpenToCategory(self.panel.name)
-        return
-    end
-    MP:Print("|cffff8866Could not open Settings panel.|r Try Esc → Options → AddOns → MythicPulse.")
 end
 
 ----------------------------------------------------------------------
--- Init on load
+-- Init on login
 ----------------------------------------------------------------------
 MP:RegisterEvent("PLAYER_ENTERING_WORLD", function(event, isLogin)
     if isLogin or not MP.ConfigPanel.panel then

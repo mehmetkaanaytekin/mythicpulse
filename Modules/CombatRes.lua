@@ -10,6 +10,7 @@ local CombatRes = {
         "UNIT_SPELLCAST_SUCCEEDED",
         "GROUP_ROSTER_UPDATE",
         "UNIT_AURA",
+        "UNIT_PET",
         "CHALLENGE_MODE_START",
         "CHALLENGE_MODE_RESET",
         "CHALLENGE_MODE_COMPLETED",
@@ -24,8 +25,7 @@ local SATED_DURATION = 600
 
 local BL_CLASSES = {
     SHAMAN = "certain",
-    MAGE = "certain",
-    HUNTER = "possible",
+    MAGE   = "certain",
 }
 
 local BL_SPELL_IDS = {
@@ -59,6 +59,7 @@ end
 local section
 local brezIcon
 local blIcon
+local trinketIcon
 local satedExpiry = 0
 
 local function TryCall(fn, ...)
@@ -87,13 +88,28 @@ end
 
 local function CreateStatusIcon(parent, xOffset, spellID, label)
     local size = MP:GetSetting("modules.combatRes.iconSize") or 38
-    local frame = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+    local frame = CreateFrame("Frame", nil, parent)
     frame:SetSize(size, size)
-    frame:SetPoint("TOPLEFT", xOffset, -20)
-    MP:CreateBackdrop(frame)
+    frame:SetPoint("TOPLEFT", xOffset, 0)
 
-    frame.icon = frame:CreateTexture(nil, "ARTWORK")
-    frame.icon:SetAllPoints()
+    -- Class-colored border (Background)
+    frame.border = frame:CreateTexture(nil, "BACKGROUND")
+    frame.border:SetTexture("Interface\\Buttons\\WHITE8x8")
+    frame.border:SetAllPoints()
+    frame.border:SetVertexColor(0.3, 0.3, 0.4, 1)
+
+    -- Inner black background
+    frame.innerBorder = frame:CreateTexture(nil, "ARTWORK", nil, -1)
+    frame.innerBorder:SetTexture("Interface\\Buttons\\WHITE8x8")
+    frame.innerBorder:SetPoint("TOPLEFT", 1, -1)
+    frame.innerBorder:SetPoint("BOTTOMRIGHT", -1, 1)
+    frame.innerBorder:SetVertexColor(0, 0, 0, 1)
+
+    -- Icon texture
+    frame.icon = frame:CreateTexture(nil, "ARTWORK", nil, 0)
+    frame.icon:SetPoint("TOPLEFT", 1, -1)
+    frame.icon:SetPoint("BOTTOMRIGHT", -1, 1)
+    frame.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     frame.icon:SetTexture(SpellTexture(spellID, 136243))
 
     frame.countText = frame:CreateFontString(nil, "OVERLAY")
@@ -132,14 +148,22 @@ end
 
 local function CreateUI()
     local size = MP:GetSetting("modules.combatRes.iconSize") or 38
-    local iconGap = 12
-    local sectionHeight = size + 38
-    section = MP.MainFrame:CreateSection(MP.L["BREZ"] or "Battle Res", sectionHeight)
+    local iconGap = 24
+    local sectionHeight = size + 18
+    section = MP.CombatResFrame:CreateSection(nil, sectionHeight)
 
-    brezIcon = CreateStatusIcon(section, 0, 20484, "Battle Res")
-    blIcon = CreateStatusIcon(section, size + iconGap, 2825, "Bloodlust")
+    brezIcon    = CreateStatusIcon(section, 0,                       20484, "Battle Res")
+    blIcon      = CreateStatusIcon(section, size + iconGap,          2825,  "Bloodlust")
+    trinketIcon = CreateStatusIcon(section, (size + iconGap) * 2,    0,     "Trinket")
+    -- Start trinket icon greyed until first scan
+    if trinketIcon then
+        trinketIcon.icon:SetDesaturated(true)
+        trinketIcon.icon:SetVertexColor(0.5, 0.5, 0.5)
+    end
 
-    MP.MainFrame:AddSection(section)
+    MP.CombatResFrame:AddSection(section)
+    MP.CombatResFrame:SetWidth((size + iconGap) * 2 + size)
+    MP.CombatResFrame:Layout()
 end
 
 local function ScanForBL()
@@ -155,8 +179,21 @@ local function ScanForBL()
         local name = ShortName(fullName)
         if not name or seen[name] then return end
         local _, class = UnitClass(unit)
-        local confidence = class and BL_CLASSES[class]
-        if not confidence then return end
+        if not class then return end
+
+        local confidence = BL_CLASSES[class]
+        if not confidence then
+            -- Hunters provide BL through their exotic pet (Primal Rage).
+            -- Only include them if a pet is currently active; dismiss = no BL.
+            if class == "HUNTER" then
+                local petUnit = unit == "player" and "pet" or (unit .. "pet")
+                if not UnitExists(petUnit) then return end
+                confidence = "certain"
+            else
+                return
+            end
+        end
+
         seen[name] = true
         casters[#casters + 1] = {
             name = name,
@@ -181,20 +218,70 @@ local function ScanForBL()
 end
 
 local function PollSatedAura()
-    if not (C_UnitAuras and C_UnitAuras.GetAuraDataBySpellID) then return end
-    for spellID in pairs(SATED_IDS) do
-        local ok, aura = pcall(C_UnitAuras.GetAuraDataBySpellID, "player", spellID, "HARMFUL")
-        if ok and aura then
-            local exp = aura.expirationTime
-            if exp and exp > GetTime() then
-                satedExpiry = exp
-            elseif satedExpiry <= GetTime() then
-                satedExpiry = GetTime() + SATED_DURATION
+    local now = GetTime()
+    local bestExpiry = 0
+
+    local function checkUnit(unit)
+        if not UnitExists(unit) then return end
+        if not (C_UnitAuras and C_UnitAuras.GetAuraDataBySpellID) then return end
+        for spellID in pairs(SATED_IDS) do
+            local ok, aura = pcall(C_UnitAuras.GetAuraDataBySpellID, unit, spellID, "HARMFUL")
+            if ok and aura then
+                -- expirationTime may be a secret value in Midnight; guard with pcall
+                local expOk, exp = pcall(function() return aura.expirationTime end)
+                exp = (expOk and exp) or (now + SATED_DURATION)
+                if exp > bestExpiry then bestExpiry = exp end
+                return
             end
-            return
         end
     end
-    satedExpiry = 0
+
+    checkUnit("player")
+    if IsInRaid() then
+        for i = 1, GetNumGroupMembers() do checkUnit("raid" .. i) end
+    else
+        for i = 1, 4 do checkUnit("party" .. i) end
+    end
+
+    satedExpiry = bestExpiry > now and bestExpiry or 0
+end
+
+local function UpdateTrinketDisplay()
+    if not trinketIcon then return end
+    local tt = MP:GetModule("TrinketTracker")
+    if not (tt and tt.GetNextReady) then return end
+
+    local best = tt:GetNextReady()
+    if not best then
+        PaintIcon(trinketIcon, { desaturated = true, state = "", stateColor = { 0.45, 0.45, 0.45 } })
+        return
+    end
+
+    -- Update icon to the actual equipped trinket's art
+    local tex
+    if best.itemID and C_Item and C_Item.GetItemIconByID then
+        tex = C_Item.GetItemIconByID(best.itemID)
+    end
+    if not tex and best.spellID then
+        tex = SpellTexture(best.spellID, 136243)
+    end
+    if tex then trinketIcon.icon:SetTexture(tex) end
+
+    if best.ready then
+        PaintIcon(trinketIcon, {
+            desaturated = false,
+            state       = "Ready",
+            stateColor  = { 0.3, 1, 0.3 },
+        })
+    else
+        local remain = math.max(0, best.at - GetTime())
+        PaintIcon(trinketIcon, {
+            desaturated = true,
+            timer       = remain > 0 and MP:FormatTime(remain) or "",
+            state       = "On CD",
+            stateColor  = { 1, 0.35, 0.35 },
+        })
+    end
 end
 
 local function ApplyBLCooldown(name)
@@ -203,7 +290,7 @@ local function ApplyBLCooldown(name)
     local now = GetTime()
     local applied = false
     for _, c in ipairs(CombatRes.blCasters) do
-        if c.name == short then
+        if MP:SafeStringEquals(c.name, short) then
             c.cdEnd = now + BL_CASTER_CD
             applied = true
             break
@@ -376,47 +463,25 @@ local function UpdateBLStatus()
         return
     end
 
-    local certainTotal, certainReady, certainNext = 0, 0, nil
-    local possibleTotal, possibleReady, possibleNext = 0, 0, nil
+    local total, ready, nextCD = 0, 0, nil
     for _, caster in ipairs(CombatRes.blCasters) do
         local remain = math.max(0, (caster.cdEnd or 0) - now)
-        if caster.confidence == "certain" then
-            certainTotal = certainTotal + 1
-            if remain <= 0 then
-                certainReady = certainReady + 1
-            elseif not certainNext or remain < certainNext then
-                certainNext = remain
-            end
-        else
-            possibleTotal = possibleTotal + 1
-            if remain <= 0 then
-                possibleReady = possibleReady + 1
-            elseif not possibleNext or remain < possibleNext then
-                possibleNext = remain
-            end
+        total = total + 1
+        if remain <= 0 then
+            ready = ready + 1
+        elseif not nextCD or remain < nextCD then
+            nextCD = remain
         end
     end
 
-    if certainTotal > 0 then
-        local ready = certainReady > 0
+    if total > 0 then
+        local isReady = ready > 0
         PaintIcon(blIcon, {
-            desaturated = not ready,
-            count = string.format("%d/%d", certainReady, certainTotal),
-            timer = (not ready and certainNext) and MP:FormatTime(certainNext) or "",
-            state = ready and "Ready" or "Caster CD",
-            stateColor = ready and { 0.3, 1, 0.3 } or { 1, 0.35, 0.35 },
-        })
-        return
-    end
-
-    if possibleTotal > 0 then
-        local ready = possibleReady > 0
-        PaintIcon(blIcon, {
-            desaturated = not ready,
-            count = string.format("%d/%d", possibleReady, possibleTotal),
-            timer = (not ready and possibleNext) and MP:FormatTime(possibleNext) or "",
-            state = ready and "Possible" or "Possible CD",
-            stateColor = ready and { 1, 0.95, 0.2 } or { 1, 0.5, 0.2 },
+            desaturated = not isReady,
+            count = string.format("%d/%d", ready, total),
+            timer = (not isReady and nextCD) and MP:FormatTime(nextCD) or "",
+            state = isReady and "Ready" or "On CD",
+            stateColor = isReady and { 0.3, 1, 0.3 } or { 1, 0.35, 0.35 },
         })
         return
     end
@@ -431,7 +496,7 @@ end
 local function ApplyBrez(name, spellID)
     local short = ShortName(name)
     for _, c in ipairs(CombatRes.casters) do
-        if c.name == short and c.spellID == spellID then
+        if MP:SafeStringEquals(c.name, short) and c.spellID == spellID then
             c.cdEnd = GetTime() + c.duration
             return true
         end
@@ -464,6 +529,7 @@ ticker:SetScript("OnUpdate", function(_, dt)
     elapsed = 0
     UpdateDisplay()
     UpdateBLStatus()
+    UpdateTrinketDisplay()
 end)
 
 function CombatRes:OnEvent(event, ...)
@@ -489,9 +555,19 @@ function CombatRes:OnEvent(event, ...)
 
     if event == "UNIT_AURA" then
         local unit = ...
-        if unit == "player" and satedExpiry <= GetTime() then
-            PollSatedAura()
-            UpdateBLStatus()
+        if satedExpiry <= GetTime() then
+            local relevant = unit == "player"
+            if not relevant then
+                if IsInRaid() then
+                    relevant = unit:match("^raid%d+$") ~= nil
+                else
+                    relevant = unit:match("^party%d+$") ~= nil
+                end
+            end
+            if relevant then
+                PollSatedAura()
+                UpdateBLStatus()
+            end
         end
         return
     end
@@ -506,6 +582,15 @@ function CombatRes:OnEvent(event, ...)
         return
     end
 
+    if event == "UNIT_PET" then
+        -- A Hunter summoned or dismissed their pet — re-evaluate BL sources
+        C_Timer.After(0.2, function()
+            ScanForBL()
+            UpdateBLStatus()
+        end)
+        return
+    end
+
     if event == "CHALLENGE_MODE_START" then
         satedExpiry = 0
         ScanParty()
@@ -514,7 +599,9 @@ function CombatRes:OnEvent(event, ...)
         for _, c in ipairs(self.blCasters) do c.cdEnd = 0 end
         UpdateDisplay()
         UpdateBLStatus()
+        UpdateTrinketDisplay()
         ticker:Show()
+        if MP.CombatResFrame then MP.CombatResFrame:UpdateVisibility() end
         return
     end
 
@@ -524,6 +611,10 @@ function CombatRes:OnEvent(event, ...)
 end
 
 function CombatRes:OnFrameReady()
+    if not MP.CombatResFrame or not MP.CombatResFrame.frame then
+        MP:Debug("CombatResFrame not ready, skipping CombatRes UI creation")
+        return
+    end
     CreateUI()
     if MP.Comm then
         MP.Comm:RegisterHandler("BREZ", OnRemoteBrez)
@@ -533,7 +624,15 @@ function CombatRes:OnFrameReady()
     ScanForBL()
     UpdateDisplay()
     UpdateBLStatus()
+    UpdateTrinketDisplay()
     ticker:Show()
+end
+
+function CombatRes:OnDisable()
+    self.active = false
+    ticker:Hide()
+    if section then section:Hide() end
+    if MP.CombatResFrame then MP.CombatResFrame:Layout() end
 end
 
 function CombatRes:OnPlayerEnteringWorld()

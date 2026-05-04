@@ -140,16 +140,9 @@ local function CreateUtilityFrame()
         GameTooltip:Hide()
     end)
 
-    -- Register with the shared backdrop system so global background toggles
-    -- always apply to this frame in the same pass as other MP frames.
-    MP:CreateBackdrop(
-        f,
-        { r = 0.06, g = 0.06, b = 0.10, a = 0.92 },
-        { r = 0.15, g = 0.15, b = 0.25, a = 0.70 }
-    )
-
-    -- Subtle glow
-    MP:CreateGlow(f, { r = 0.00, g = 0.50, b = 0.80, a = 0.20 }, 3)
+    -- Use the same backdrop style as all other MythicPulse panels
+    MP:CreateBackdrop(f, MP.COLORS.bg, MP.COLORS.border)
+    MP:CreateGlow(f, MP.COLORS.borderGlow, 4)
 
     -- Drag behavior
     f:RegisterForDrag("LeftButton")
@@ -271,7 +264,7 @@ local function CreateUtilityFrame()
     -- ============================================================
     f.content = CreateFrame("Frame", nil, f)
     f.content:SetPoint("TOPLEFT", f.separator, "BOTTOMLEFT", 0, -ICON_SPACING)
-    f.content:SetPoint("RIGHT", f, "RIGHT", -RIGHT_PADDING, 0)
+    f.content:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -RIGHT_PADDING, TOP_PADDING)
     f.content:SetHyperlinksEnabled(true)
     f.content:SetScript("OnHyperlinkEnter", function(self, link, text)
         GameTooltip:SetOwner(self, "ANCHOR_CURSOR_RIGHT")
@@ -400,7 +393,7 @@ function MP.UtilityFrame:RefreshContent()
         -- Position row
         row:ClearAllPoints()
         row:SetPoint("TOPLEFT", self.frame.content, "TOPLEFT", 0, -yOffset)
-        row:SetPoint("RIGHT", self.frame.content, "RIGHT", 0, 0)
+        row:SetPoint("TOPRIGHT", self.frame.content, "TOPRIGHT", 0, -yOffset)
         row:Show()
 
         yOffset = yOffset + ICON_SIZE + ICON_SPACING
@@ -409,7 +402,7 @@ function MP.UtilityFrame:RefreshContent()
         if row.detailFrame and row.detailFrame:IsShown() then
             row.detailFrame:ClearAllPoints()
             row.detailFrame:SetPoint("TOPLEFT", self.frame.content, "TOPLEFT", ENTRY_INDENT, -yOffset)
-            row.detailFrame:SetPoint("RIGHT", self.frame.content, "RIGHT", 0, 0)
+            row.detailFrame:SetPoint("TOPRIGHT", self.frame.content, "TOPRIGHT", 0, -yOffset)
 
             local detailHeight = self:GetDetailHeight(row.detailFrame)
             row.detailFrame:SetHeight(math.max(detailHeight, 1))
@@ -430,7 +423,7 @@ function MP.UtilityFrame:CreateAbilityRow(index)
 
     -- Category label (left side, outside the row)
     row.categoryLabel = row:CreateFontString(nil, "OVERLAY")
-    row.categoryLabel:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
+    row.categoryLabel:SetFontObject(MP.Fonts and MP.Fonts.Header or "GameFontNormalLarge")
     row.categoryLabel:SetPoint("RIGHT", row, "LEFT", -4, 0)
     row.categoryLabel:SetJustifyH("RIGHT")
     row.categoryLabel:SetWidth(LABEL_WIDTH + 10)
@@ -732,6 +725,21 @@ function MP.UtilityFrame:Toggle()
         self:Hide()
     else
         self:Show()
+    end
+end
+
+----------------------------------------------------------------------
+-- Reset position
+----------------------------------------------------------------------
+function MP.UtilityFrame:ResetPosition()
+    if not self.frame then return end
+    self.frame:ClearAllPoints()
+    self.frame:SetPoint("CENTER", UIParent, "CENTER", 0, 100)
+    if MP.db and MP.db.modules and MP.db.modules.dungeonUtility then
+        MP.db.modules.dungeonUtility.framePoint    = "CENTER"
+        MP.db.modules.dungeonUtility.frameRelPoint = "CENTER"
+        MP.db.modules.dungeonUtility.frameX        = 0
+        MP.db.modules.dungeonUtility.frameY        = 100
     end
 end
 

@@ -44,13 +44,19 @@ function MP.ProgressBarWidget:Create(parent, width, height, name)
     bar.textOverlay:SetAllPoints(bar)
     bar.textOverlay:SetFrameLevel(bar:GetFrameLevel() + 10)
 
-    -- Center text (percentage / status) — uses MP.Fonts.Label (16px OUTLINE)
+    -- Center text (percentage / status)
     bar.text = bar.textOverlay:CreateFontString(nil, "OVERLAY")
     bar.text:SetFontObject(MP.Fonts.Label)
     bar.text:SetPoint("CENTER", bar, "CENTER", 0, 0)
     bar.text:SetTextColor(1, 1, 1)
     bar.text:SetJustifyH("CENTER")
     bar.text:SetJustifyV("MIDDLE")
+
+    -- Apply a heavy shadow instead of a background texture
+    local fontPath, fontSize = bar.text:GetFont()
+    bar.text:SetFont(fontPath, fontSize, "THICKOUTLINE")
+    bar.text:SetShadowOffset(1.5, -1.5)
+    bar.text:SetShadowColor(0, 0, 0, 1.0)
 
     -- Left text
     bar.leftText = bar.textOverlay:CreateFontString(nil, "OVERLAY")

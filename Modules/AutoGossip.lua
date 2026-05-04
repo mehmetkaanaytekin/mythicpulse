@@ -24,44 +24,16 @@ local AutoGossip = {
 -- Keyed by NPC display name (as returned by UnitName("npc")).
 --
 -- WHY NAMES NOT IDs: In Midnight 12.0.5 M+ instances, UnitGUID("npc")
--- returns a tainted secret value.  Extracting the NPC ID from that GUID
--- via strsplit throws "attempt to perform string conversion on a secret
--- string value".  UnitName is never tainted, so we key this table on the
--- NPC's English display name instead.
---
--- LOCALIZATION NOTE: This matches the client's locale.  Non-enUS clients
--- will not auto-gossip for most entries here until the table is extended
--- with localised names.  This is acceptable — it's a convenience feature.
+-- returns a tainted secret value.  UnitName("npc") is also tainted and
+-- cannot be used as a table key — instead we iterate this table and
+-- compare with ==, which returns a regular boolean even for secret strings.
 --
 -- Format: ["NPC Name"] = { option = N | "first", note = "..." }
 -- option = "first" → select the first gossip option offered (safe default)
+--
+-- TODO: populate with Midnight M+ dungeon NPCs once the pool is known.
 ----------------------------------------------------------------------
-local AUTO_GOSSIP = {
-    -- Halls of Valor: Odyn
-    ["Odyn"]                 = { option = "first", note = "Halls of Valor" },
-
-    -- Court of Stars: Talixae (skip RP intro)
-    ["Talixae Flamewreath"]  = { option = "first", note = "Court of Stars" },
-
-    -- Operation: Mechagon
-    ["Pascal-K1N6"]          = { option = "first", note = "Operation: Mechagon" },
-
-    -- Mists of Tirna Scithe: maze guide
-    ["Tirnenn Villager"]     = { option = "first", note = "Mists of Tirna Scithe" },
-
-    -- Halls of Atonement
-    ["Echelon's Lieutenant"] = { option = "first", note = "Halls of Atonement" },
-
-    -- Theatre of Pain: ring NPCs
-    ["Choofa"]               = { option = "first", note = "Theatre of Pain" },
-    ["Mistress Dyrax"]       = { option = "first", note = "Theatre of Pain" },
-
-    -- Plaguefall
-    ["Globgrog"]             = { option = "first", note = "Plaguefall" },
-
-    -- Tazavesh: Streets
-    ["So'leah"]              = { option = "first", note = "Tazavesh" },
-}
+local AUTO_GOSSIP = {}
 
 ----------------------------------------------------------------------
 -- Check if AutoGossip should run right now.
@@ -88,12 +60,18 @@ function AutoGossip:OnEvent(event)
         return
     end
 
-    -- Identify NPC by display name.  UnitName never returns a tainted value,
-    -- making this safe in Midnight 12.0.5 M+ instances (unlike UnitGUID).
+    -- UnitName("npc") returns a tainted string in Midnight 12.x. Direct == throws
+    -- "secret string value" even against a literal. Use SafeStringEquals (pcall).
     local npcName = UnitName("npc")
     if not npcName then return end
 
-    local rule = AUTO_GOSSIP[npcName]
+    local rule
+    for knownName, entry in pairs(AUTO_GOSSIP) do
+        if MP:SafeStringEquals(npcName, knownName) then
+            rule = entry
+            break
+        end
+    end
     if not rule then return end
 
     -- Get available gossip options
@@ -109,8 +87,11 @@ function AutoGossip:OnEvent(event)
     end
     if not target then return end
 
-    -- Safety: don't complete quests via auto-gossip
-    if target.flags and bit.band(target.flags, 0x10) ~= 0 then
+    -- Safety: don't complete quests via auto-gossip.
+    -- QuestLabelPrepend flag (0x10) marks quest turn-in options; use the named enum
+    -- if available so the code stays correct if Blizzard renumbers the flag.
+    local QUEST_FLAG = (Enum.GossipOptionRecFlags and Enum.GossipOptionRecFlags.QuestLabelPrepend) or 0x10
+    if target.flags and bit.band(target.flags, QUEST_FLAG) ~= 0 then
         MP:Debug("AutoGossip: skipping quest turn-in option for", rule.note)
         return
     end

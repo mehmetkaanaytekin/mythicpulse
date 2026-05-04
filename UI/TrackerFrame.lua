@@ -30,32 +30,10 @@ local function CreateTrackerFrame()
     -- Subtle glow
     MP:CreateGlow(f, MP.COLORS.borderGlow, 4)
 
-    -- Title bar
-    f.titleBar = CreateFrame("Frame", nil, f)
-    f.titleBar:SetHeight(22)
-    f.titleBar:SetPoint("TOPLEFT", FRAME_PADDING, -FRAME_PADDING)
-    f.titleBar:SetPoint("TOPRIGHT", -FRAME_PADDING, -FRAME_PADDING)
-
-    f.titleText = f.titleBar:CreateFontString(nil, "OVERLAY")
-    f.titleText:SetFontObject(MP.Fonts.Header)
-    f.titleText:SetPoint("LEFT")
-    f.titleText:SetTextColor(MP.COLORS.brand.r, MP.COLORS.brand.g, MP.COLORS.brand.b)
-    f.titleText:SetText("MythicPulse Cooldowns")
-
-    -- Separator under title
-    f.titleSep = f:CreateTexture(nil, "ARTWORK")
-    f.titleSep:SetTexture("Interface\\Buttons\\WHITE8x8")
-    f.titleSep:SetHeight(1)
-    f.titleSep:SetPoint("TOPLEFT", f.titleBar, "BOTTOMLEFT", 0, -3)
-    f.titleSep:SetPoint("TOPRIGHT", f.titleBar, "BOTTOMRIGHT", 0, -3)
-    f.titleSep:SetVertexColor(MP.COLORS.border.r, MP.COLORS.border.g, MP.COLORS.border.b, 0.4)
-    f._mpTitleSep = f.titleSep
-    if MP.db and MP.db.showBackdrop == false then f.titleSep:Hide() end
-
     -- Content area (modules attach here)
     f.content = CreateFrame("Frame", nil, f)
-    f.content:SetPoint("TOPLEFT", f.titleSep, "BOTTOMLEFT", 0, -SECTION_GAP)
-    f.content:SetPoint("RIGHT", f, "RIGHT", -FRAME_PADDING, 0)
+    f.content:SetPoint("TOPLEFT", f, "TOPLEFT", FRAME_PADDING, -FRAME_PADDING)
+    f.content:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -FRAME_PADDING, FRAME_PADDING)
 
     -- Drag behavior
     f:RegisterForDrag("LeftButton")
@@ -88,8 +66,8 @@ end
 function MP.TrackerFrame:CreateSection(title, height)
     local section = CreateFrame("Frame", nil, self.frame.content)
     section:SetHeight(height or 40)
-    section:SetPoint("LEFT", 0, 0)
-    section:SetPoint("RIGHT", 0, 0)
+    section:SetPoint("TOPLEFT", 0, 0)
+    section:SetPoint("TOPRIGHT", 0, 0)
 
     if title then
         section.label = section:CreateFontString(nil, "OVERLAY")
@@ -115,21 +93,21 @@ function MP.TrackerFrame:Layout()
         if section:IsShown() and section:GetHeight() > 0 then
             section:ClearAllPoints()
             section:SetPoint("TOPLEFT", self.frame.content, "TOPLEFT", 0, -yOff)
-            section:SetPoint("RIGHT", self.frame.content, "RIGHT", 0, 0)
+            section:SetPoint("TOPRIGHT", self.frame.content, "TOPRIGHT", 0, -yOff)
             yOff = yOff + section:GetHeight() + SECTION_GAP
             visibleSections = visibleSections + 1
         end
     end
 
-    -- If no sections are visible, hide the frame completely (unless unlocked for dragging)
-    if visibleSections == 0 and (MP.db and MP.db.locked) then
+    -- Hide the frame whenever there is nothing to show
+    if visibleSections == 0 then
         self.frame:Hide()
         return
     end
 
     -- Resize main frame to fit content
-    local totalHeight = FRAME_PADDING + 22 + 3 + SECTION_GAP + yOff + FRAME_PADDING
-    self.frame:SetHeight(math.max(totalHeight, 60))
+    local totalHeight = FRAME_PADDING + yOff + FRAME_PADDING
+    self.frame:SetHeight(math.max(totalHeight, 40))
 
     -- Re-evaluate visibility
     self:UpdateVisibility()

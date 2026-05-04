@@ -1,58 +1,50 @@
 --[[
-    MythicPulse - Interrupt Frame
-    Standalone secondary HUD for Interrupt tracking module.
-    Can be moved and scaled independently from the main Mythic+ timer HUD and Party Cooldowns.
+    MythicPulse - Combat Utilities Frame
+    Standalone HUD for Bloodlust and Battle Res tracking.
+    Independently draggable, like the Interrupt Frame.
 ]]
 
 local _, MP = ...
 
-MP.InterruptFrame = {}
+MP.CombatResFrame = {}
 
-local FRAME_WIDTH  = 220
-local FRAME_PADDING = 6
+local FRAME_PADDING = 8
 local HEADER_HEIGHT = 18
-local SECTION_GAP  = 4
 
 ----------------------------------------------------------------------
--- Create the interrupt frame
+-- Create the frame
 ----------------------------------------------------------------------
-local function CreateInterruptFrame()
-    local f = CreateFrame("Frame", "MythicPulseInterruptFrame", UIParent, "BackdropTemplate")
-    f:SetSize(FRAME_WIDTH, 10)  -- height set dynamically
+local function CreateCombatResFrame()
+    local f = CreateFrame("Frame", "MythicPulseCombatResFrame", UIParent, "BackdropTemplate")
+    f:SetSize(130, 10)   -- width resized in SetWidth(); height set by Layout()
     f:SetFrameStrata("MEDIUM")
     f:SetFrameLevel(9)
     f:SetClampedToScreen(true)
     f:SetMovable(true)
     f:EnableMouse(true)
 
-    -- Content area (modules attach here) — offset below the header
     f.content = CreateFrame("Frame", nil, f)
     f.content:SetPoint("TOPLEFT",     f, "TOPLEFT",     FRAME_PADDING,  -(FRAME_PADDING + HEADER_HEIGHT))
     f.content:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -FRAME_PADDING,  FRAME_PADDING)
 
-    -- Drag behavior
-    -- "Interrupts" header at the top-left
     f.header = f:CreateFontString(nil, "OVERLAY")
     f.header:SetFontObject(MP.Fonts and MP.Fonts.Label or "GameFontHighlight")
     f.header:SetPoint("TOPLEFT", f, "TOPLEFT", FRAME_PADDING, -2)
     f.header:SetTextColor(0.85, 0.85, 0.85)
-    f.header:SetText("Interrupts")
+    f.header:SetText("Combat")
 
     f:RegisterForDrag("LeftButton")
     f:SetScript("OnDragStart", function(self)
-        if not MP.db or not MP.db.locked then
-            self:StartMoving()
-        end
+        if not MP.db or not MP.db.locked then self:StartMoving() end
     end)
     f:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
-        -- Save position
         if MP.db then
             local point, _, relPoint, x, y = self:GetPoint()
-            MP.db.interruptFrame.point    = point
-            MP.db.interruptFrame.relPoint = relPoint
-            MP.db.interruptFrame.x        = x
-            MP.db.interruptFrame.y        = y
+            MP.db.combatResFrame.point    = point
+            MP.db.combatResFrame.relPoint = relPoint
+            MP.db.combatResFrame.x        = x
+            MP.db.combatResFrame.y        = y
         end
     end)
 
@@ -60,14 +52,13 @@ local function CreateInterruptFrame()
 end
 
 ----------------------------------------------------------------------
--- Section creator for modules
+-- Section creator (mirrors InterruptFrame API)
 ----------------------------------------------------------------------
-function MP.InterruptFrame:CreateSection(title, height)
+function MP.CombatResFrame:CreateSection(title, height)
     local section = CreateFrame("Frame", nil, self.frame.content)
     section:SetHeight(height or 40)
     section:SetPoint("TOPLEFT",  0, 0)
     section:SetPoint("TOPRIGHT", 0, 0)
-
     if title then
         section.label = section:CreateFontString(nil, "OVERLAY")
         section.label:SetFontObject(MP.Fonts.Label)
@@ -75,57 +66,56 @@ function MP.InterruptFrame:CreateSection(title, height)
         section.label:SetTextColor(MP.COLORS.textSecondary.r, MP.COLORS.textSecondary.g, MP.COLORS.textSecondary.b)
         section.label:SetText(title)
     end
-
     return section
 end
 
 ----------------------------------------------------------------------
--- Layout: arrange sections vertically
+-- Layout
 ----------------------------------------------------------------------
-function MP.InterruptFrame:Layout()
+function MP.CombatResFrame:Layout()
     if not self.sections then return end
-
-    local yOff = 0
-    local visibleSections = 0
-
+    local yOff, visible = 0, 0
     for _, section in ipairs(self.sections) do
         if section:IsShown() and section:GetHeight() > 0 then
             section:ClearAllPoints()
             section:SetPoint("TOPLEFT",  self.frame.content, "TOPLEFT",  0, -yOff)
             section:SetPoint("TOPRIGHT", self.frame.content, "TOPRIGHT", 0, -yOff)
-            yOff = yOff + section:GetHeight() + SECTION_GAP
-            visibleSections = visibleSections + 1
+            yOff    = yOff + section:GetHeight()
+            visible = visible + 1
         end
     end
-
-    -- If no sections are visible, hide the frame completely
-    if visibleSections == 0 then
+    if visible == 0 then
         self.frame:Hide()
         return
     end
-
-    -- Resize main frame to fit content (header + content + padding)
-    local totalHeight = math.max(FRAME_PADDING + HEADER_HEIGHT + yOff + FRAME_PADDING, 40)
-    if math.abs(self.frame:GetHeight() - totalHeight) > 0.5 then
-        self.frame:SetHeight(totalHeight)
+    local totalH = math.max(FRAME_PADDING + HEADER_HEIGHT + yOff + FRAME_PADDING, 40)
+    if math.abs(self.frame:GetHeight() - totalH) > 0.5 then
+        self.frame:SetHeight(totalH)
     end
-
-    -- Re-evaluate visibility
     self:UpdateVisibility()
 end
 
 ----------------------------------------------------------------------
--- Add a section to the layout
+-- Add section
 ----------------------------------------------------------------------
-function MP.InterruptFrame:AddSection(section)
+function MP.CombatResFrame:AddSection(section)
     if not self.sections then self.sections = {} end
     table.insert(self.sections, section)
 end
 
 ----------------------------------------------------------------------
+-- Resize frame width to snugly fit content (called by CombatRes)
+----------------------------------------------------------------------
+function MP.CombatResFrame:SetWidth(contentWidth)
+    if self.frame then
+        self.frame:SetWidth(contentWidth + FRAME_PADDING * 2)
+    end
+end
+
+----------------------------------------------------------------------
 -- Toggle visibility
 ----------------------------------------------------------------------
-function MP.InterruptFrame:Toggle()
+function MP.CombatResFrame:Toggle()
     if self.frame:IsShown() then
         self.frame:Hide()
         self.manualState = "hidden"
@@ -136,34 +126,22 @@ function MP.InterruptFrame:Toggle()
 end
 
 ----------------------------------------------------------------------
--- Auto-show/hide based on instance state
+-- Auto-show/hide
 ----------------------------------------------------------------------
-function MP.InterruptFrame:UpdateVisibility()
-    if self.manualState == "hidden" then 
-        self.frame:Hide()
-        return 
-    end
-    if self.manualState == "shown" then
-        self.frame:Show()
-        return
-    end
-
-    local inInstance, instanceType = IsInInstance()
+function MP.CombatResFrame:UpdateVisibility()
+    if self.manualState == "hidden" then self.frame:Hide(); return end
+    if self.manualState == "shown"  then self.frame:Show(); return end
+    local _, instanceType = IsInInstance()
     local shouldShow = MP:IsInMythicPlus() or instanceType == "party" or instanceType == "raid"
-
-    if shouldShow then
-        self.frame:Show()
-    else
-        self.frame:Hide()
-    end
+    if shouldShow then self.frame:Show() else self.frame:Hide() end
 end
 
 ----------------------------------------------------------------------
--- Update lock state
+-- Lock state
 ----------------------------------------------------------------------
-function MP.InterruptFrame:UpdateLock()
+function MP.CombatResFrame:UpdateLock()
     if InCombatLockdown() then
-        C_Timer.After(0.5, function() MP.InterruptFrame:UpdateLock() end)
+        C_Timer.After(0.5, function() MP.CombatResFrame:UpdateLock() end)
         return
     end
     local f = self.frame
@@ -180,14 +158,14 @@ end
 ----------------------------------------------------------------------
 -- Reset position
 ----------------------------------------------------------------------
-function MP.InterruptFrame:ResetPosition()
+function MP.CombatResFrame:ResetPosition()
     self.frame:ClearAllPoints()
-    self.frame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 320, -200)
+    self.frame:SetPoint("CENTER", UIParent, "CENTER", 200, -200)
     if MP.db then
-        MP.db.interruptFrame.point    = "TOPLEFT"
-        MP.db.interruptFrame.relPoint = "TOPLEFT"
-        MP.db.interruptFrame.x        = 320
-        MP.db.interruptFrame.y        = -200
+        MP.db.combatResFrame.point    = "CENTER"
+        MP.db.combatResFrame.relPoint = "CENTER"
+        MP.db.combatResFrame.x        = 200
+        MP.db.combatResFrame.y        = -200
     end
 end
 
@@ -195,29 +173,28 @@ end
 -- Initialization
 ----------------------------------------------------------------------
 MP:RegisterEvent("PLAYER_ENTERING_WORLD", function()
-    if not MP.InterruptFrame.frame then
-        MP.InterruptFrame.frame = CreateInterruptFrame()
-        MP.InterruptFrame.sections = {}
-        MP.InterruptFrame.manualState = nil
+    if not MP.CombatResFrame.frame then
+        MP.CombatResFrame.frame    = CreateCombatResFrame()
+        MP.CombatResFrame.sections = {}
+        MP.CombatResFrame.manualState = nil
 
-        -- Restore saved position
-        if MP.db and MP.db.interruptFrame then
-            local mf = MP.db.interruptFrame
-            MP.InterruptFrame.frame:ClearAllPoints()
-            MP.InterruptFrame.frame:SetPoint(
-                mf.point or "TOPLEFT",
+        if MP.db and MP.db.combatResFrame then
+            local cf = MP.db.combatResFrame
+            MP.CombatResFrame.frame:ClearAllPoints()
+            MP.CombatResFrame.frame:SetPoint(
+                cf.point    or "CENTER",
                 UIParent,
-                mf.relPoint or "TOPLEFT",
-                mf.x or 320,
-                mf.y or -200
+                cf.relPoint or "CENTER",
+                cf.x        or 200,
+                cf.y        or -200
             )
-            MP.InterruptFrame.frame:SetScale(mf.scale or 1.0)
-            MP.InterruptFrame.frame:SetAlpha(mf.alpha or 1.0)
+            MP.CombatResFrame.frame:SetScale(cf.scale or 1.0)
+            MP.CombatResFrame.frame:SetAlpha(cf.alpha or 1.0)
         end
     end
 
     C_Timer.After(0.5, function()
-        MP.InterruptFrame:UpdateVisibility()
-        MP.InterruptFrame:Layout()
+        MP.CombatResFrame:UpdateVisibility()
+        MP.CombatResFrame:Layout()
     end)
 end)

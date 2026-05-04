@@ -55,11 +55,16 @@ local function ScanEquippedTrinkets()
                 local duration = 0
                 if C_Spell and C_Spell.GetSpellCooldown then
                     local info = C_Spell.GetSpellCooldown(spellID)
-                    -- tonumber() strips Blizzard's "secret number" taint
-                    -- that Midnight applies to certain cooldown API return values.
-                    local dur = info and tonumber(info.duration) or 0
-                    if dur and dur > 0 then
-                        duration = dur
+                    -- Blizzard's Midnight "secret number" taint can make
+                    -- tonumber() return nil AND make direct comparisons error.
+                    -- Use pcall to safely extract a usable number.
+                    if info then
+                        local ok, val = pcall(function()
+                            local d = tonumber(info.duration)
+                            if d and d > 0 then return d end
+                            return 0
+                        end)
+                        duration = (ok and val) or 0
                     end
                 end
                 -- Skip 0-CD entries (passive procs masquerading as spells)
@@ -119,7 +124,13 @@ function TrinketTracker:GetNextReady()
         local cdEnd = data.cdEnd or 0
         if not bestEnd or cdEnd < bestEnd then
             bestEnd = cdEnd
-            best = { spellID = sid, name = data.name, ready = (cdEnd <= now), at = cdEnd }
+            best = {
+                spellID = sid,
+                itemID  = data.itemID,
+                name    = data.name,
+                ready   = (cdEnd <= now),
+                at      = cdEnd,
+            }
         end
     end
     return best

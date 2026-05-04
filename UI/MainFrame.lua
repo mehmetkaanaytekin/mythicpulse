@@ -13,9 +13,11 @@ local _, MP = ...
 
 MP.MainFrame = {}
 
-local FRAME_WIDTH  = 260
-local FRAME_PADDING = 14
-local SECTION_GAP  = 16
+local FRAME_WIDTH        = 310
+local FRAME_PADDING      = 14
+local SECTION_GAP        = 16
+local ADDON_HEADER_H     = 14   -- "MythicPulse Timer" label
+local ADDON_HEADER_GAP   = 3
 
 ----------------------------------------------------------------------
 -- Create the main frame
@@ -30,17 +32,18 @@ local function CreateMainFrame()
     f:EnableMouse(true)
     f:Hide()
 
-    -- Backdrop
-    MP:CreateBackdrop(f)
+    -- Small addon header label
+    f.addonHeader = f:CreateFontString(nil, "OVERLAY")
+    f.addonHeader:SetFontObject(MP.Fonts.Label)
+    f.addonHeader:SetPoint("TOPLEFT", FRAME_PADDING, -FRAME_PADDING)
+    f.addonHeader:SetTextColor(MP.COLORS.textSecondary.r, MP.COLORS.textSecondary.g, MP.COLORS.textSecondary.b)
+    f.addonHeader:SetText("MythicPulse Timer")
 
-    -- Subtle glow
-    MP:CreateGlow(f, MP.COLORS.borderGlow, 4)
-
-    -- Title bar
+    -- Title bar (dungeon name + key level), shifted below the addon header
     f.titleBar = CreateFrame("Frame", nil, f)
     f.titleBar:SetHeight(24)
-    f.titleBar:SetPoint("TOPLEFT", FRAME_PADDING, -FRAME_PADDING)
-    f.titleBar:SetPoint("TOPRIGHT", -FRAME_PADDING, -FRAME_PADDING)
+    f.titleBar:SetPoint("TOPLEFT",  FRAME_PADDING,  -(FRAME_PADDING + ADDON_HEADER_H + ADDON_HEADER_GAP))
+    f.titleBar:SetPoint("TOPRIGHT", -FRAME_PADDING, -(FRAME_PADDING + ADDON_HEADER_H + ADDON_HEADER_GAP))
 
     f.titleText = f.titleBar:CreateFontString(nil, "OVERLAY")
     f.titleText:SetFontObject(MP.Fonts.Header)
@@ -48,10 +51,10 @@ local function CreateMainFrame()
     f.titleText:SetTextColor(MP.COLORS.brand.r, MP.COLORS.brand.g, MP.COLORS.brand.b)
     f.titleText:SetText("MythicPulse")
 
-    -- Key level display (right side of title bar)
+    -- Key level display (immediately right of dungeon name)
     f.keyLevelText = f.titleBar:CreateFontString(nil, "OVERLAY")
     f.keyLevelText:SetFontObject(MP.Fonts.Header)
-    f.keyLevelText:SetPoint("RIGHT")
+    f.keyLevelText:SetPoint("LEFT", f.titleText, "RIGHT", 6, 0)
     f.keyLevelText:SetTextColor(0.95, 0.95, 0.95)
 
     -- Separator under title
@@ -62,12 +65,11 @@ local function CreateMainFrame()
     f.titleSep:SetPoint("TOPRIGHT", f.titleBar, "BOTTOMRIGHT", 0, -3)
     f.titleSep:SetVertexColor(MP.COLORS.border.r, MP.COLORS.border.g, MP.COLORS.border.b, 0.4)
     f._mpTitleSep = f.titleSep
-    if MP.db and MP.db.showBackdrop == false then f.titleSep:Hide() end
 
     -- Content area (modules attach here)
     f.content = CreateFrame("Frame", nil, f)
     f.content:SetPoint("TOPLEFT", f.titleSep, "BOTTOMLEFT", 0, -SECTION_GAP)
-    f.content:SetPoint("RIGHT", f, "RIGHT", -FRAME_PADDING, 0)
+    f.content:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -FRAME_PADDING, FRAME_PADDING)
 
     -- Drag behavior
     f:RegisterForDrag("LeftButton")
@@ -88,9 +90,6 @@ local function CreateMainFrame()
         end
     end)
 
-    -- Final sync after all visual layers exist (glow/title separator).
-    MP:ApplyBackdrop(f)
-
     return f
 end
 
@@ -100,8 +99,8 @@ end
 function MP.MainFrame:CreateSection(title, height)
     local section = CreateFrame("Frame", nil, self.frame.content)
     section:SetHeight(height or 40)
-    section:SetPoint("LEFT", 0, 0)
-    section:SetPoint("RIGHT", 0, 0)
+    section:SetPoint("TOPLEFT", 0, 0)
+    section:SetPoint("TOPRIGHT", 0, 0)
 
     if title then
         section.label = section:CreateFontString(nil, "OVERLAY")
@@ -122,17 +121,24 @@ function MP.MainFrame:Layout()
     if not self.sections then return end
 
     local yOff = 0
+    local visibleSections = 0
     for _, section in ipairs(self.sections) do
         if section:IsShown() then
             section:ClearAllPoints()
             section:SetPoint("TOPLEFT", self.frame.content, "TOPLEFT", 0, -yOff)
-            section:SetPoint("RIGHT", self.frame.content, "RIGHT", 0, 0)
+            section:SetPoint("TOPRIGHT", self.frame.content, "TOPRIGHT", 0, -yOff)
             yOff = yOff + section:GetHeight() + SECTION_GAP
+            visibleSections = visibleSections + 1
         end
     end
 
+    if visibleSections == 0 then
+        self.frame:Hide()
+        return
+    end
+
     -- Resize main frame to fit content
-    local totalHeight = FRAME_PADDING + 24 + 3 + SECTION_GAP + yOff + FRAME_PADDING
+    local totalHeight = FRAME_PADDING + ADDON_HEADER_H + ADDON_HEADER_GAP + 24 + 3 + SECTION_GAP + yOff + FRAME_PADDING
     self.frame:SetHeight(math.max(totalHeight, 60))
 end
 
@@ -172,18 +178,13 @@ function MP.MainFrame:UpdateVisibility()
         return
     end
 
-    local inInstance, instanceType = IsInInstance()
-    local shouldShow = MP:IsInMythicPlus() or instanceType == "party" or instanceType == "raid"
-
-    if shouldShow then
+    if MP:IsInMythicPlus() then
         self.frame:Show()
     else
-        -- Keep visible briefly after leaving, then auto-hide
+        -- Keep visible briefly after leaving M+, then auto-hide
         if not self.hideTimer then
             self.hideTimer = C_Timer.NewTimer(5, function()
-                local inInst, instType = IsInInstance()
-                local stillShouldShow = MP:IsInMythicPlus() or instType == "party" or instType == "raid"
-                if not stillShouldShow and self.manualState ~= "shown" and self.frame then
+                if not MP:IsInMythicPlus() and self.manualState ~= "shown" and self.frame then
                     self.frame:Hide()
                 end
                 self.hideTimer = nil
@@ -196,20 +197,16 @@ end
 -- Update lock state
 ----------------------------------------------------------------------
 function MP.MainFrame:UpdateLock()
-    -- Guard: do not modify backdrop during combat (Midnight taint prevention)
     if InCombatLockdown() then
-        -- Defer until combat ends
         C_Timer.After(0.5, function() MP.MainFrame:UpdateLock() end)
         return
     end
-    -- Visual feedback: dim border when locked (skip if backdrop is hidden)
-    if not self.frame:GetBackdrop() then return end
+    local f = self.frame
     if MP.db and MP.db.locked then
-        self.frame:SetBackdropBorderColor(0.15, 0.15, 0.2, 0.4)
+        f:SetBackdrop(nil)
     else
-        self.frame:SetBackdropBorderColor(
-            MP.COLORS.border.r, MP.COLORS.border.g, MP.COLORS.border.b, MP.COLORS.border.a
-        )
+        f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8" })
+        f:SetBackdropColor(0, 0, 0, 0.20)
     end
 end
 
@@ -226,6 +223,11 @@ function MP.MainFrame:ResetPosition()
         MP.db.mainFrame.y        = -120
     end
 end
+
+----------------------------------------------------------------------
+-- Stub kept for backwards-compat; Timer module owns death display now.
+----------------------------------------------------------------------
+function MP.MainFrame:SetDeathInfo(_count, _totalPenalty) end
 
 ----------------------------------------------------------------------
 -- Set the dungeon header info

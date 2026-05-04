@@ -11,8 +11,6 @@ local _, MP = ...
 
 MP.CooldownIconWidget = {}
 
-local BASE_FONT = "Fonts\\FRIZQT__.TTF"
-
 --- Pick a readable font size for the CD text given an icon size.
 local function CDTextSize(iconSize)
     -- ~55% of icon is a good rule of thumb; minimum 10 to stay legible.
@@ -67,7 +65,8 @@ function MP.CooldownIconWidget:Create(parent, size)
 
     -- Cooldown text overlay (on top of the sweep)
     frame.cdText = frame.cooldown:CreateFontString(nil, "OVERLAY")
-    frame.cdText:SetFont(BASE_FONT, CDTextSize(size), "OUTLINE")
+    local baseFont = MP.Fonts and MP.Fonts.Body and MP.Fonts.Body:GetFont() or "Fonts\\FRIZQT__.TTF"
+    frame.cdText:SetFont(baseFont, CDTextSize(size), "OUTLINE")
     frame.cdText:SetPoint("CENTER", 0, 0)
     frame.cdText:SetTextColor(1, 1, 1)
     frame.cdText:SetDrawLayer("OVERLAY", 7)
@@ -90,7 +89,8 @@ function MP.CooldownIconWidget:Create(parent, size)
     --- Callers that resize the icon via frame:SetSize(w, h) should call this.
     function frame:ApplySize(w)
         if self.cdText then
-            self.cdText:SetFont(BASE_FONT, CDTextSize(w), "OUTLINE")
+            local font = MP.Fonts and MP.Fonts.Body and MP.Fonts.Body:GetFont() or "Fonts\\FRIZQT__.TTF"
+            self.cdText:SetFont(font, CDTextSize(w), "OUTLINE")
         end
     end
 

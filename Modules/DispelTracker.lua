@@ -136,8 +136,8 @@ end
 
 local function FindMember(guid, name)
     for _, m in ipairs(DispelTracker.members) do
-        if guid and m.guid == guid then return m end
-        if name and m.name == name then return m end
+        if guid and MP:SafeStringEquals(m.guid, guid) then return m end
+        if name and MP:SafeStringEquals(m.name, name) then return m end
     end
     return nil
 end
@@ -191,7 +191,15 @@ function DispelTracker:CanLocalPlayerDispelUnit(unit)
         pcall(function()
             local dn = aura.dispelName
             if dn and dn ~= "" then
-                dispelType = DISPEL_NAME_MAP[dn]
+                -- Cannot use dn as a table key (secret value in M+ instances).
+                -- Direct == comparison against regular strings is safe and returns
+                -- a normal boolean.
+                for mapKey, mapVal in pairs(DISPEL_NAME_MAP) do
+                    if dn == mapKey then
+                        dispelType = mapVal
+                        break
+                    end
+                end
             end
         end)
 
@@ -240,6 +248,11 @@ function DispelTracker:OnFrameReady()
     end
     ScanGroup()
     self.active = true
+end
+
+function DispelTracker:OnDisable()
+    self.active = false
+    self.members = {}
 end
 
 function DispelTracker:OnPlayerEnteringWorld()

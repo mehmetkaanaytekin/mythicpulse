@@ -166,6 +166,15 @@ function MP:ClassColoredName(name, class)
     return name
 end
 
+--- Compare two strings safely, handling Midnight's secret/tainted string values.
+--- UnitGUID/UnitName for non-self party units can return tainted strings that throw
+--- when used as table keys or in direct == comparisons in some Midnight builds.
+--- pcall catches the error and degrades gracefully to false (skip).
+function MP:SafeStringEquals(a, b)
+    local ok, eq = pcall(function() return a == b end)
+    return ok and eq
+end
+
 --- Print a message to chat with addon prefix
 function MP:Print(...)
     local msg = table.concat({...}, " ")
@@ -377,52 +386,19 @@ SlashCmdList["MYTHICPULSE"] = function(input)
 
     if cmd == "" or cmd == "help" then
         MP:Print("|cff00ccffMythicPulse Commands:|r")
-        MP:Print("  /mp toggle   — Toggle main display")
+        MP:Print("  /mp display  — Preview frames with mock data (for layout)")
         MP:Print("  /mp config   — Open settings")
         MP:Print("  /mp lock     — Lock/unlock frames")
         MP:Print("  /mp reset    — Reset frame positions")
-        MP:Print("  /mp key      — Announce your keystone")
         MP:Print("  /mp keys     — Announce all party keys")
-        MP:Print("  /mp history  — Show run history")
-        MP:Print("  /mp summary  — Show last run summary")
         MP:Print("  /mp utility  — Toggle dungeon utility")
-        MP:Print("  /mp rotation — Announce kick rotation")
-        MP:Print("  /mp demo     — Toggle demo mode (test layout)")
+        MP:Print("|cff999999  Frames auto-show in combat/M+; no manual toggle needed.|r")
         
     elseif cmd == "config" or cmd == "options" or cmd == "settings" then
         if MP.ConfigPanel and MP.ConfigPanel.Toggle then
             MP.ConfigPanel:Toggle()
         else
             Settings.OpenToCategory("MythicPulse")
-        end
-        
-    elseif cmd == "toggle" then
-        -- Coordinate all three frames as a unit. If ANY is currently shown,
-        -- hide all; if ALL are hidden, show all. This avoids the desync that
-        -- results from each frame flipping independently when they start in
-        -- different visibility states (e.g., MainFrame hidden outside M+
-        -- while Tracker/Interrupt are shown).
-        local frames = {
-            (MP.MainFrame      and MP.MainFrame.frame)      or nil,
-            (MP.TrackerFrame   and MP.TrackerFrame.frame)   or nil,
-            (MP.InterruptFrame and MP.InterruptFrame.frame) or nil,
-        }
-        local anyShown = false
-        for _, f in ipairs(frames) do
-            if f and f:IsShown() then anyShown = true; break end
-        end
-        local targetShown = not anyShown
-        if MP.MainFrame and MP.MainFrame.frame then
-            MP.MainFrame.frame:SetShown(targetShown)
-            MP.MainFrame.manualState = targetShown and "shown" or "hidden"
-        end
-        if MP.TrackerFrame and MP.TrackerFrame.frame then
-            MP.TrackerFrame.frame:SetShown(targetShown)
-            MP.TrackerFrame.manualState = targetShown and "shown" or "hidden"
-        end
-        if MP.InterruptFrame and MP.InterruptFrame.frame then
-            MP.InterruptFrame.frame:SetShown(targetShown)
-            MP.InterruptFrame.manualState = targetShown and "shown" or "hidden"
         end
         
     elseif cmd == "lock" then
@@ -452,19 +428,6 @@ SlashCmdList["MYTHICPULSE"] = function(input)
         end
         MP:Print("Frame positions reset.")
         
-    elseif cmd == "history" then
-        local history = MP:GetModule("DungeonHistory")
-        if history and history.ShowSummary then
-            history:ShowSummary()
-        end
-
-    elseif cmd == "summary" or cmd == "last" then
-        if MP.RunSummary and MP.RunSummary.lastRun then
-            MP.RunSummary:Show(MP.RunSummary.lastRun)
-        else
-            MP:Print("No completed run in this session yet.")
-        end
-        
     elseif cmd == "keys" then
         local kt = MP:GetModule("KeystoneTracker")
         if kt and kt.AnnounceKeys then
@@ -485,11 +448,11 @@ SlashCmdList["MYTHICPULSE"] = function(input)
             du:Toggle()
         end
 
-    elseif cmd == "demo" then
+    elseif cmd == "display" or cmd == "demo" then
         if MP.Demo and MP.Demo.Toggle then
             MP.Demo:Toggle()
         else
-            MP:Print("Demo module not available.")
+            MP:Print("Display preview unavailable.")
         end
 
     elseif cmd == "rotation" or cmd == "rot" or cmd == "kicks" then

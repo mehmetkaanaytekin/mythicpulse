@@ -41,58 +41,57 @@ local DEFAULTS = {
     interruptFrame = {
         scale    = 1.0,
         alpha    = 1.0,
-        point    = "LEFT",
-        relPoint = "LEFT",
+        point    = "TOPLEFT",
+        relPoint = "TOPLEFT",
         x        = 320,
-        y        = 0,
+        y        = -200,
+    },
+
+    -- Combat Utilities Frame (Bloodlust + Battle Res)
+    combatResFrame = {
+        scale    = 1.0,
+        alpha    = 1.0,
+        point    = "CENTER",
+        relPoint = "CENTER",
+        x        = 200,
+        y        = -200,
     },
 
     -- Module Toggles & Settings
     modules = {
         timer = {
             enabled      = true,
-            showPlusTwo   = true,
-            showPlusThree = true,
-            showBossSplits = true,
-            colorCoded   = true,
         },
         deathTracker = {
             enabled      = true,
-            showLog      = true,
-            showPenalty  = true,
         },
         enemyForces = {
             enabled      = true,
-            showCount    = true,
-            showPercent  = true,
-            showPull     = true,
         },
-        affixDisplay = {
-            enabled      = true,
-            showTooltips = true,
-            iconSize     = 24,
-        },
+
         keystoneTracker = {
             enabled      = true,
-            showPartyKeys = true,
         },
         interruptTracker = {
-            enabled             = true,
-            showInCombatOnly    = false,
-            failedKickDetection = true,
-            clickToAnnounce     = true,
+            enabled          = true,
+            showInCombatOnly = false,
+            autoAnnounce     = false,
         },
         partyCooldowns = {
-            enabled      = true,
-            iconSize     = 32,
-            showInterrupts = true,
-            showDefensives = true,
-            showExternals  = true,
+            enabled         = true,
+            iconSize        = 32,
+            iconGap         = 4,
+            maxIcons        = 8,
+            iconsPerRow     = 8,
+            anchorPoint     = "LEFT",
+            relativePoint   = "RIGHT",
+            offsetX         = 4,
+            offsetY         = 0,
+            growthDirection = "RIGHT",
+            showDispelBar   = true,
         },
         dispelTracker = {
-            enabled       = true,
-            showOffensive = true,
-            showDefensive = true,
+            enabled = true,
         },
         autoGossip = {
             enabled       = true,
@@ -107,10 +106,6 @@ local DEFAULTS = {
         combatRes = {
             enabled       = true,
             iconSize      = 38,
-        },
-        runSummary = {
-            enabled       = true,
-            autoShow      = true,
         },
         autoSlot = {
             enabled       = true,
@@ -128,6 +123,14 @@ local DEFAULTS = {
             frameX           = nil,
             frameY           = nil,
         },
+    },
+
+    -- Config Panel position
+    configPanel = {
+        point    = "CENTER",
+        relPoint = "CENTER",
+        x        = 0,
+        y        = 0,
     },
 
     -- Run History Storage
@@ -199,7 +202,14 @@ function MP:ResetConfig()
     MythicPulseDB = DeepCopy(DEFAULTS)
     self.db = MythicPulseDB
     self:Print("All settings reset to defaults.")
-    
+
+    -- Reset frame positions
+    if MP.MainFrame and MP.MainFrame.ResetPosition then MP.MainFrame:ResetPosition() end
+    if MP.TrackerFrame and MP.TrackerFrame.ResetPosition then MP.TrackerFrame:ResetPosition() end
+    if MP.InterruptFrame  and MP.InterruptFrame.ResetPosition  then MP.InterruptFrame:ResetPosition()  end
+    if MP.CombatResFrame  and MP.CombatResFrame.ResetPosition  then MP.CombatResFrame:ResetPosition()  end
+    if MP.UtilityFrame and MP.UtilityFrame.ResetPosition then MP.UtilityFrame:ResetPosition() end
+
     -- Notify modules
     for name, mod in pairs(self.modules) do
         if mod.OnConfigReset then
@@ -231,10 +241,45 @@ MP:RegisterEvent("ADDON_LOADED", function(event, addon)
     MP.db = MythicPulseDB
     MP:Debug("Config loaded. Debug:", tostring(MP.db.debug))
 
+    -- Sync module enabled states from config
+    for name, mod in pairs(MP.modules) do
+        -- Convert PascalCase "EnemyForces" to camelCase "enemyForces" to match DB keys
+        local dbKey = name:sub(1,1):lower() .. name:sub(2)
+        local isEnabled = MP:IsModuleEnabled(dbKey)
+        if isEnabled ~= nil then
+            mod.enabled = isEnabled
+            if not isEnabled and mod.OnDisable then
+                mod:OnDisable()
+            end
+        end
+    end
+
     -- ============================================================
     -- Hide Blizzard's default M+ UI frames to avoid clutter.
     -- MythicPulse replaces them with its own HUD.
     -- ============================================================
+    -- Suppress a frame: alpha=0, no mouse, hook Show to stay suppressed during M+.
+    local function SuppressFrame(f)
+        if not f then return end
+        f:SetAlpha(0)
+        f:EnableMouse(false)
+        if not f._mpSuppressHooked then
+            f._mpSuppressHooked = true
+            hooksecurefunc(f, "Show", function(self)
+                if MP:IsInMythicPlus() and not InCombatLockdown() then
+                    self:SetAlpha(0)
+                    self:EnableMouse(false)
+                end
+            end)
+        end
+    end
+
+    local function RestoreFrame(f)
+        if not f then return end
+        f:SetAlpha(1)
+        f:EnableMouse(true)
+    end
+
     local function HideBlizzardMythicPlusUI()
         -- Guard combat lockdown for any protected frames
         if InCombatLockdown() then
@@ -247,39 +292,33 @@ MP:RegisterEvent("ADDON_LOADED", function(event, addon)
             ChallengeModeSummaryFrame:Hide()
         end
 
-        -- ScenarioBlocksFrame (the M+ objective/timer block in ObjectiveTracker)
-        if ScenarioBlocksFrame then
-            ScenarioBlocksFrame:SetAlpha(0)
-            ScenarioBlocksFrame:EnableMouse(false)
-            -- Hook OnShow to suppress it from reappearing during the run
-            if not ScenarioBlocksFrame._mpHooked then
-                ScenarioBlocksFrame._mpHooked = true
-                hooksecurefunc(ScenarioBlocksFrame, "Show", function(self)
-                    if MP:IsInMythicPlus() and not InCombatLockdown() then
-                        self:SetAlpha(0)
-                        self:EnableMouse(false)
-                    end
-                end)
-            end
-        end
+        -- Entire ObjectiveTrackerFrame: quests, bonus objectives, scenario blocks
+        SuppressFrame(ObjectiveTrackerFrame)
 
-        -- ObjectiveTrackerFrame scenario header (if it exists in this build)
-        if ObjectiveTrackerFrame and ObjectiveTrackerFrame.BlocksFrame then
-            local bf = ObjectiveTrackerFrame.BlocksFrame
-            if bf.ScenarioObjectiveBlock then
-                bf.ScenarioObjectiveBlock:SetAlpha(0)
-            end
-            -- Some builds use MythicPlusObjectiveBlock
-            if bf.MythicPlusObjectiveBlock then
-                bf.MythicPlusObjectiveBlock:SetAlpha(0)
-            end
-        end
+        -- ScenarioBlocksFrame (standalone M+ block, some builds)
+        SuppressFrame(ScenarioBlocksFrame)
 
         -- The ScenarioObjectiveTracker module (Dragonflight+/Midnight builds)
         if ScenarioObjectiveTracker then
+            SuppressFrame(ScenarioObjectiveTracker)
             if ScenarioObjectiveTracker.ContentsFrame then
-                ScenarioObjectiveTracker.ContentsFrame:SetAlpha(0)
+                SuppressFrame(ScenarioObjectiveTracker.ContentsFrame)
             end
+        end
+
+        -- UI widget containers: scenario progress, dungeon-event widgets, affix display
+        SuppressFrame(UIWidgetTopCenterContainerFrame)
+        SuppressFrame(UIWidgetBelowMinimapContainerFrame)
+        SuppressFrame(UIWidgetPowerBarContainerFrame)
+
+        -- Blizzard's built-in M+ death counter (TWW+/Midnight)
+        SuppressFrame(ScenarioChallengeDeathTracker)
+
+        -- Remaining sub-blocks in ObjectiveTracker (belt-and-suspenders)
+        if ObjectiveTrackerFrame and ObjectiveTrackerFrame.BlocksFrame then
+            local bf = ObjectiveTrackerFrame.BlocksFrame
+            if bf.ScenarioObjectiveBlock  then bf.ScenarioObjectiveBlock:SetAlpha(0)  end
+            if bf.MythicPlusObjectiveBlock then bf.MythicPlusObjectiveBlock:SetAlpha(0) end
         end
     end
 
@@ -289,21 +328,25 @@ MP:RegisterEvent("ADDON_LOADED", function(event, addon)
             return
         end
 
-        if ScenarioBlocksFrame then
-            ScenarioBlocksFrame:SetAlpha(1)
-            ScenarioBlocksFrame:EnableMouse(true)
+        RestoreFrame(ObjectiveTrackerFrame)
+        RestoreFrame(ScenarioBlocksFrame)
+
+        if ScenarioObjectiveTracker then
+            RestoreFrame(ScenarioObjectiveTracker)
+            if ScenarioObjectiveTracker.ContentsFrame then
+                RestoreFrame(ScenarioObjectiveTracker.ContentsFrame)
+            end
         end
+
+        RestoreFrame(UIWidgetTopCenterContainerFrame)
+        RestoreFrame(UIWidgetBelowMinimapContainerFrame)
+        RestoreFrame(UIWidgetPowerBarContainerFrame)
+        RestoreFrame(ScenarioChallengeDeathTracker)
+
         if ObjectiveTrackerFrame and ObjectiveTrackerFrame.BlocksFrame then
             local bf = ObjectiveTrackerFrame.BlocksFrame
-            if bf.ScenarioObjectiveBlock then
-                bf.ScenarioObjectiveBlock:SetAlpha(1)
-            end
-            if bf.MythicPlusObjectiveBlock then
-                bf.MythicPlusObjectiveBlock:SetAlpha(1)
-            end
-        end
-        if ScenarioObjectiveTracker and ScenarioObjectiveTracker.ContentsFrame then
-            ScenarioObjectiveTracker.ContentsFrame:SetAlpha(1)
+            if bf.ScenarioObjectiveBlock  then bf.ScenarioObjectiveBlock:SetAlpha(1)  end
+            if bf.MythicPlusObjectiveBlock then bf.MythicPlusObjectiveBlock:SetAlpha(1) end
         end
     end
 
