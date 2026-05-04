@@ -1,0 +1,6 @@
+package-as: MythicPulse
+ignore:
+  - .pkgmeta
+  - .github
+  - README.md
+  - .gitignore
