@@ -21,11 +21,11 @@ MP.L = {
     ["BOSS_SPLIT"]           = "Босс %d: %s",
 
     -- Death Tracker
-    ["DEATHS"] = "Смерти",
-    ["DEATH_LOG"] = "Журнал смертей",
-    ["DEATH_PENALTY"] = "Потеряно времени",
-    ["DEATH_ENTRY"] = "%s умер в %s",
-    ["NO_DEATHS"] = "Нет смертей",
+    ["DEATHS"]               = "Смерти",
+    ["DEATH_LOG"]            = "Журнал смертей",
+    ["DEATH_PENALTY"]        = "Потеряно времени",
+    ["DEATH_ENTRY"]          = "%s умер в %s",
+    ["NO_DEATHS"]            = "Нет смертей",
 
     -- Enemy Forces
     ["ENEMY_FORCES"]         = "Силы противников",
