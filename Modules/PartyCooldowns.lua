@@ -687,8 +687,22 @@ function PartyCooldowns:OnDisable()
     end
 end
 
+function PartyCooldowns:OnEnable()
+    -- Re-run frame-ready setup so the UnitFrameProvider callback and Comm handler
+    -- are restored after a same-session disable/re-enable (OnDisable unregisters them).
+    self:OnFrameReady()
+end
+
 function PartyCooldowns:OnPlayerEnteringWorld()
     C_Timer.After(3, function()
+        -- Reactivate if we reloaded while already inside an active key.
+        if not self.active
+        and C_ChallengeMode
+        and C_ChallengeMode.IsChallengeModeActive
+        and C_ChallengeMode.IsChallengeModeActive() then
+            self.active = true
+            updateFrame:Show()
+        end
         if self.active then ScanGroup() end
     end)
 end
@@ -721,7 +735,8 @@ function PartyCooldowns:StartDemo(demoParty)
             unitToRow[unitToken] = row
 
             local cfg    = GetCfg()
-            local spells = CollectSpellsForUnit(unitToken, p.class, nil)
+            -- Use a neutral token so IsPlayerSpell doesn't filter demo spells for the wrong class.
+            local spells = CollectSpellsForUnit("party0", p.class, nil)
             table.sort(spells, SortSpells)
             local limited = {}
             for j = 1, math.min(#spells, cfg.maxIcons or 8) do limited[j] = spells[j] end

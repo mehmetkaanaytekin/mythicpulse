@@ -58,6 +58,13 @@ for name, size in pairs(BASE_SIZES) do
     MP.Fonts[name] = MakeFont(name, size, FLAGS[name], 1, -1)
 end
 
+-- Fixed-size fonts for the config panel UI — never touched by Apply().
+local PANEL_SIZES = { Header = 17, Body = 15, Small = 14 }
+MP.Fonts.UI = {}
+for name, size in pairs(PANEL_SIZES) do
+    MP.Fonts.UI[name] = MakeFont("UI" .. name, size, "", 0, 0)
+end
+
 --- Return the current font scale from saved settings.
 function MP.Fonts:GetScale()
     local s = MP.db and MP.db.fontScale

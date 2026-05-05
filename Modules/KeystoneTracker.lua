@@ -267,4 +267,15 @@ end
 ----------------------------------------------------------------------
 -- Register
 ----------------------------------------------------------------------
+function KeystoneTracker:OnDisable()
+    local timer = MP:GetModule("Timer")
+    if timer and timer.affixRow then
+        timer.affixRow:SetText("")
+    end
+end
+
+function KeystoneTracker:OnEnable()
+    -- Affix row will repopulate at next run start or /mp display.
+end
+
 MP:RegisterModule("KeystoneTracker", KeystoneTracker)

@@ -94,7 +94,7 @@ ticker:SetScript("OnUpdate", function(self, dt)
     if tickerElapsed >= 0.1 then
         tickerElapsed = 0
         local ef = MP:GetModule("EnemyForces")
-        if ef and ef.UpdateDemo then
+        if ef and ef.enabled and ef.UpdateDemo then
             local t = MP:GetModule("Timer")
             if t then
                 local efCurrent = (t.elapsed / DEMO_DUNGEON.timeLimit) * DEMO_FORCES_TOTAL
@@ -119,7 +119,7 @@ end
 
 local function StartPartyTrackers()
     local it = MP:GetModule("InterruptTracker")
-    if it then
+    if it and it.enabled then
         it.members = {}
         for _, p in ipairs(DEMO_PARTY) do
             table.insert(it.members, {
@@ -137,7 +137,7 @@ local function StartPartyTrackers()
     end
 
     local pc = MP:GetModule("PartyCooldowns")
-    if pc and pc.StartDemo then
+    if pc and pc.enabled and pc.StartDemo then
         pc:StartDemo(DEMO_PARTY)
     end
 end
@@ -163,17 +163,20 @@ function Demo:Start()
     StartPartyTrackers()
 
     local ef = MP:GetModule("EnemyForces")
-    if ef and ef.StartDemo then
+    if ef and ef.enabled and ef.StartDemo then
         ef:StartDemo({ current = 0, total = DEMO_FORCES_TOTAL })
     end
 
     local dt = MP:GetModule("DispelTracker")
-    if dt and dt.StartDemo then dt:StartDemo() end
+    if dt and dt.enabled and dt.StartDemo then dt:StartDemo() end
 
-    if MP.InterruptFrame and MP.InterruptFrame.frame then
+    local it = MP:GetModule("InterruptTracker")
+    if it and it.enabled and MP.InterruptFrame and MP.InterruptFrame.frame then
         MP.InterruptFrame.frame:Show()
     end
-    if MP.CombatResFrame and MP.CombatResFrame.frame then
+
+    local cr = MP:GetModule("CombatRes")
+    if cr and cr.enabled and MP.CombatResFrame and MP.CombatResFrame.frame then
         MP.CombatResFrame.frame:Show()
     end
 

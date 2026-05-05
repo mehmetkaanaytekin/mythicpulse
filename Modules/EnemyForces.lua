@@ -459,6 +459,13 @@ end
 function EnemyForces:OnDisable()
     self.active = false
     paceTicker:Hide()
+    local t = MP:GetModule("Timer")
+    if t and t.forcesContainer then t.forcesContainer:Hide() end
+end
+
+function EnemyForces:OnEnable()
+    local t = MP:GetModule("Timer")
+    if t and t.forcesContainer then t.forcesContainer:Show() end
 end
 
 function EnemyForces:OnFrameReady()

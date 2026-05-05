@@ -29,7 +29,7 @@ local function MakeCheckbox(parent, label, x, y, settingPath, onChange)
     local cb = CreateFrame("CheckButton", nil, parent, "InterfaceOptionsCheckButtonTemplate")
     cb:SetPoint("TOPLEFT", x, y)
     cb.Text:SetText(label)
-    cb.Text:SetFontObject(MP.Fonts.Body)
+    cb.Text:SetFontObject(MP.Fonts.UI.Body)
     cb:SetScript("OnClick", function(self)
         local v = self:GetChecked()
         MP:SetSetting(settingPath, v)
@@ -46,7 +46,7 @@ end
 ----------------------------------------------------------------------
 local function MakeSlider(parent, label, x, y, w, minVal, maxVal, step, settingPath, onChange)
     local lbl = parent:CreateFontString(nil, "OVERLAY")
-    lbl:SetFontObject(MP.Fonts.Small)
+    lbl:SetFontObject(MP.Fonts.UI.Small)
     lbl:SetTextColor(0.75, 0.75, 0.80)
     lbl:SetPoint("TOPLEFT", x, y)
     lbl:SetText(label)
@@ -62,15 +62,22 @@ local function MakeSlider(parent, label, x, y, w, minVal, maxVal, step, settingP
     if sl.High  then sl.High:SetText(tostring(maxVal)) end
 
     sl.valText = sl:CreateFontString(nil, "OVERLAY")
-    sl.valText:SetFontObject(MP.Fonts.Small)
+    sl.valText:SetFontObject(MP.Fonts.UI.Small)
     sl.valText:SetPoint("TOP", sl, "BOTTOM", 0, -2)
 
     local fmt = (step < 1) and "%.2f" or "%.0f"
-    sl:SetScript("OnValueChanged", function(self, v)
+    sl:SetScript("OnValueChanged", function(self, v, userInput)
         v = math.floor(v / step + 0.5) * step
         self.valText:SetText(string.format(fmt, v))
+        if not userInput then return end
         MP:SetSetting(settingPath, v)
-        if onChange then onChange(v) end
+        if onChange then
+            if self._debounceTimer then self._debounceTimer:Cancel() end
+            self._debounceTimer = C_Timer.NewTimer(0.3, function()
+                self._debounceTimer = nil
+                onChange(v)
+            end)
+        end
     end)
     function sl:Refresh()
         local v = MP:GetSetting(settingPath) or minVal
@@ -85,7 +92,7 @@ end
 ----------------------------------------------------------------------
 local function MakeCycleBtn(parent, label, x, y, options, settingPath, onChange)
     local lbl = parent:CreateFontString(nil, "OVERLAY")
-    lbl:SetFontObject(MP.Fonts.Small)
+    lbl:SetFontObject(MP.Fonts.UI.Small)
     lbl:SetTextColor(0.75, 0.75, 0.80)
     lbl:SetPoint("TOPLEFT", x, y)
     lbl:SetText(label)
@@ -130,7 +137,7 @@ local function MakePage(container)
     -- Section header with a faint rule
     function p:Header(text)
         local fs = body:CreateFontString(nil, "OVERLAY")
-        fs:SetFontObject(MP.Fonts.Header)
+        fs:SetFontObject(MP.Fonts.UI.Header)
         fs:SetTextColor(MP.COLORS.brand.r, MP.COLORS.brand.g, MP.COLORS.brand.b)
         fs:SetPoint("TOPLEFT", PAD, self.y)
         fs:SetText(text)
@@ -193,7 +200,7 @@ local function MakePage(container)
     -- Muted note/caption
     function p:Note(text)
         local fs = body:CreateFontString(nil, "OVERLAY")
-        fs:SetFontObject(MP.Fonts.Small)
+        fs:SetFontObject(MP.Fonts.UI.Small)
         fs:SetTextColor(0.52, 0.52, 0.58)
         fs:SetPoint("TOPLEFT", PAD, self.y)
         fs:SetText(text)
@@ -240,7 +247,7 @@ local function MakeSidebarBtn(sidebar, label, yOff, onClick)
     btn._bg:SetVertexColor(0, 0, 0, 0)
 
     local lbl = btn:CreateFontString(nil, "OVERLAY")
-    lbl:SetFontObject(MP.Fonts.Body)
+    lbl:SetFontObject(MP.Fonts.UI.Body)
     lbl:SetTextColor(0.78, 0.78, 0.84)
     lbl:SetJustifyH("LEFT")
     lbl:SetPoint("LEFT", btn, "LEFT", 14, 0)
@@ -321,7 +328,7 @@ local function BuildPanel()
 
     -- Title text
     local titleText = f:CreateFontString(nil, "OVERLAY")
-    titleText:SetFontObject(MP.Fonts.Header)
+    titleText:SetFontObject(MP.Fonts.UI.Header)
     titleText:SetTextColor(MP.COLORS.brand.r, MP.COLORS.brand.g, MP.COLORS.brand.b)
     titleText:SetPoint("TOPLEFT", f, "TOPLEFT", PAD, -(TITLE_H / 2 - 7))
     titleText:SetText("MythicPulse  |cff666688Settings|r")
@@ -413,6 +420,16 @@ local function BuildPanel()
             StaticPopup_Show("MYTHICPULSE_RESET_CONFIRM")
         end)
         p:Btn("Reload UI", 140, ReloadUI)
+
+        p:Gap(12)
+        p:Header("Preview")
+        p:Note("Load mock data so you can position and resize frames without being in a key.")
+        p:Btn("Toggle Preview", 140, function()
+            local demo = MP:GetModule("Demo")
+            if demo then
+                if demo.active then demo:Stop() else demo:Start() end
+            end
+        end)
 
         p:Gap(12)
         p:Header("About")
@@ -545,13 +562,13 @@ local function BuildPanel()
         p:SliderRow(
             {
                 label = "Offset X",
-                min = -100, max = 100, step = 1,
+                min = -500, max = 500, step = 1,
                 path = "modules.partyCooldowns.offsetX",
                 onChange = function() RebuildCDs() end,
             },
             {
                 label = "Offset Y",
-                min = -100, max = 100, step = 1,
+                min = -500, max = 500, step = 1,
                 path = "modules.partyCooldowns.offsetY",
                 onChange = function() RebuildCDs() end,
             }

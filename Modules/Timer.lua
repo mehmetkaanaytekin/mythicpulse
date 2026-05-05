@@ -188,8 +188,13 @@ local SKULL_ICON = "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_8:14:14:0:
 
 local function UpdateDeathRow()
     if not deathRow then return end
-    local dt     = MP:GetModule("DeathTracker")
-    local deaths = dt and (dt.count or 0) or 0
+    local dt = MP:GetModule("DeathTracker")
+    if not dt or not dt.enabled then
+        deathRow:SetText("")
+        _lastDeathCount = -1
+        return
+    end
+    local deaths = dt.count or 0
     if deaths == _lastDeathCount then return end
     _lastDeathCount = deaths
 

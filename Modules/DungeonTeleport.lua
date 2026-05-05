@@ -40,17 +40,13 @@ local integrated = false
 
 local function UpdateTeleportButtons()
     if not integrated or InCombatLockdown() then return end
-    
-    if ChallengesFrame and ChallengesFrame.DungeonIcons then
-        for _, icon in ipairs(ChallengesFrame.DungeonIcons) do
-            if icon.mapID and icon.teleportBtn then
-                local data = TELEPORT_SPELLS[icon.mapID]
-                if data and IsSpellKnownOrPlayer(data.spellID) then
-                    icon.teleportBtn:Show()
-                else
-                    icon.teleportBtn:Hide()
-                end
-            end
+    if not (ChallengesFrame and ChallengesFrame.DungeonIcons) then return end
+    local enabled = DungeonTeleport.enabled ~= false
+    for _, icon in ipairs(ChallengesFrame.DungeonIcons) do
+        if icon.mapID and icon.teleportBtn then
+            local data = TELEPORT_SPELLS[icon.mapID]
+            local visible = enabled and data ~= nil and IsSpellKnownOrPlayer(data.spellID)
+            icon.teleportBtn:SetShown(visible and true or false)
         end
     end
 end
@@ -127,6 +123,14 @@ function DungeonTeleport:OnEvent(event, ...)
     elseif event == "SPELLS_CHANGED" then
         UpdateTeleportButtons()
     end
+end
+
+function DungeonTeleport:OnDisable()
+    UpdateTeleportButtons()
+end
+
+function DungeonTeleport:OnEnable()
+    UpdateTeleportButtons()
 end
 
 function DungeonTeleport:OnFrameReady()
