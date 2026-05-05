@@ -466,6 +466,12 @@ end
 function EnemyForces:OnEnable()
     local t = MP:GetModule("Timer")
     if t and t.forcesContainer then t.forcesContainer:Show() end
+    if MP:IsInMythicPlus() then
+        self.active = true
+        paceTicker:Show()
+        UpdateEnemyForces()
+    end
+    if MP.MainFrame then MP.MainFrame:Layout() end
 end
 
 function EnemyForces:OnFrameReady()

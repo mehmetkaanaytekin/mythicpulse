@@ -196,6 +196,16 @@ function DeathTracker:OnDisable()
     end
 end
 
+function DeathTracker:OnEnable()
+    if MP:IsInMythicPlus() then
+        self.active   = true
+        self.keyLevel = MP:GetActiveKeyLevel()
+        InitAliveStates()
+        UpdateDisplay()
+        pollFrame:Show()
+    end
+end
+
 function DeathTracker:OnFrameReady()
     if MP:IsInMythicPlus() then
         self.active   = true

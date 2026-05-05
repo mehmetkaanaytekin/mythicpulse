@@ -612,7 +612,6 @@ local function BuildPanel()
     ----------------------------------------------------------------
     AddCat("Modules", function(p)
         p:Header("Enable / Disable Modules")
-        p:Note("Changes take effect after /reload.")
         p:Gap(4)
 
         local function ModToggle(modName)
@@ -630,7 +629,7 @@ local function BuildPanel()
             { label = "Interrupt Tracker",   path = "modules.interruptTracker.enabled", mod = "InterruptTracker" },
             { label = "Dispel Tracker",      path = "modules.dispelTracker.enabled",    mod = "DispelTracker" },
             { label = "Trinket Tracker",     path = "modules.trinketTracker.enabled",   mod = "TrinketTracker" },
-            { label = "Auto Gossip (coming soon)", path = "modules.autoGossip.enabled",   mod = "AutoGossip" },
+            { label = "Auto Gossip",               path = "modules.autoGossip.enabled",   mod = "AutoGossip" },
             { label = "Battle Res Tracker",  path = "modules.combatRes.enabled",        mod = "CombatRes" },
             { label = "Dungeon History",     path = "modules.dungeonHistory.enabled",   mod = "DungeonHistory" },
             { label = "Auto Keystone Slot",  path = "modules.autoSlot.enabled",         mod = "AutoSlot" },

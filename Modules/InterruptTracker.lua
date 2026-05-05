@@ -52,11 +52,14 @@ local CLASS_INTERRUPTS = {
 
 -- Spec-specific overrides (specID -> interrupt data)
 local SPEC_OVERRIDES = {
+    -- Druid: Balance uses Solar Beam instead of Skull Bash
+    [102] = { spellID = 78675,  duration = 60, name = "Solar Beam" },
     -- Hunter: Survival uses Muzzle instead of Counter Shot
     [255] = { spellID = 187707, duration = 15, name = "Muzzle" },
     -- Warlock: Demonology also has Axe Toss (pet stun with interrupt)
-    [266] = { spellID = 89766, duration = 30, name = "Axe Toss", pet = true },
-    -- Evoker: All specs use Quell but it's the same
+    [266] = { spellID = 89766,  duration = 30, name = "Axe Toss", pet = true },
+    -- Priest: Shadow spec passive reduces Silence from 45s to 30s
+    [258] = { spellID = 15487,  duration = 30, name = "Silence" },
 }
 
 -- Alternative spell IDs that map to the same interrupt (talent morphs, pet variants)
@@ -691,6 +694,24 @@ function InterruptTracker:OnDisable()
     if ticker then ticker:Hide() end
     if section then section:Hide() end
     if MP.InterruptFrame then MP.InterruptFrame:Layout() end
+end
+
+function InterruptTracker:OnEnable()
+    if section then
+        self:ScanGroup()
+        local cfg = MP.db and MP.db.modules and MP.db.modules.interruptTracker
+        if cfg and cfg.showInCombatOnly and not self.inCombat then
+            section:Hide()
+        else
+            section:Show()
+            ticker:Show()
+        end
+        self.active = true
+        UpdateRows()
+        if MP.InterruptFrame then MP.InterruptFrame:Layout() end
+    else
+        self:OnFrameReady()
+    end
 end
 
 function InterruptTracker:OnPlayerEnteringWorld()

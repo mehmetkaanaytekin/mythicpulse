@@ -584,6 +584,15 @@ function Timer:OnDisable()
     if MP.MainFrame then MP.MainFrame:Layout() end
 end
 
+function Timer:OnEnable()
+    if Timer.section then Timer.section:Show() end
+    if MP:IsInMythicPlus() then
+        StartRun()
+        tickFrame:Show()
+    end
+    if MP.MainFrame then MP.MainFrame:Layout() end
+end
+
 function Timer:OnConfigReset()
     if timerBar then timerBar:Reset() end
 end

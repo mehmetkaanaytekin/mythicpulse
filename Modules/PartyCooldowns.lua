@@ -252,7 +252,7 @@ local function CollectSpellsForUnit(unitToken, className, specID)
             end
             if include and data.isTrinket and isLocalPlayer then
                 local tt = MP:GetModule("TrinketTracker")
-                if not tt or not tt.trinkets or not tt.trinkets[spellID] then
+                if not tt or not tt.active or not tt.trinkets or not tt.trinkets[spellID] then
                     include = false
                 end
             end
@@ -688,9 +688,13 @@ function PartyCooldowns:OnDisable()
 end
 
 function PartyCooldowns:OnEnable()
-    -- Re-run frame-ready setup so the UnitFrameProvider callback and Comm handler
-    -- are restored after a same-session disable/re-enable (OnDisable unregisters them).
+    -- Re-run frame-ready setup to restore the UnitFrameProvider callback (OnDisable unregisters it).
+    -- Comm handler re-registration is safe here because Comm:RegisterHandler now deduplicates.
     self:OnFrameReady()
+    if MP:IsInMythicPlus() then
+        self.active = true
+        ScanGroup()
+    end
 end
 
 function PartyCooldowns:OnPlayerEnteringWorld()

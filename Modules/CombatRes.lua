@@ -249,7 +249,10 @@ end
 local function UpdateTrinketDisplay()
     if not trinketIcon then return end
     local tt = MP:GetModule("TrinketTracker")
-    if not (tt and tt.GetNextReady) then return end
+    if not (tt and tt.active and tt.GetNextReady) then
+        PaintIcon(trinketIcon, { desaturated = true, state = "", stateColor = { 0.45, 0.45, 0.45 } })
+        return
+    end
 
     local best = tt:GetNextReady()
     if not best then
@@ -633,6 +636,23 @@ function CombatRes:OnDisable()
     ticker:Hide()
     if section then section:Hide() end
     if MP.CombatResFrame then MP.CombatResFrame:Layout() end
+end
+
+function CombatRes:OnEnable()
+    if section then section:Show() end
+    self.active = true
+    ScanParty()
+    ScanForBL()
+    UpdateDisplay()
+    UpdateBLStatus()
+    UpdateTrinketDisplay()
+    if ticker then ticker:Show() end
+    if MP.CombatResFrame then
+        MP.CombatResFrame:Layout()
+        if MP.CombatResFrame.UpdateVisibility then
+            MP.CombatResFrame:UpdateVisibility()
+        end
+    end
 end
 
 function CombatRes:OnPlayerEnteringWorld()

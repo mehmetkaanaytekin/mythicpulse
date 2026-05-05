@@ -36,6 +36,9 @@ local handlers = {}
 function Comm:RegisterHandler(msgType, handler)
     if type(msgType) ~= "string" or type(handler) ~= "function" then return end
     handlers[msgType] = handlers[msgType] or {}
+    for _, h in ipairs(handlers[msgType]) do
+        if h == handler then return end
+    end
     table.insert(handlers[msgType], handler)
 end
 

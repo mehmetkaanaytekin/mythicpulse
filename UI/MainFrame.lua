@@ -140,6 +140,7 @@ function MP.MainFrame:Layout()
     -- Resize main frame to fit content
     local totalHeight = FRAME_PADDING + ADDON_HEADER_H + ADDON_HEADER_GAP + 24 + 3 + SECTION_GAP + yOff + FRAME_PADDING
     self.frame:SetHeight(math.max(totalHeight, 60))
+    self:UpdateVisibility()
 end
 
 ----------------------------------------------------------------------

@@ -182,6 +182,20 @@ function TrinketTracker:OnFrameReady()
     -- isn't ready at addon-load time.
 end
 
+function TrinketTracker:OnDisable()
+    self.active = false
+    self.trinkets = {}
+    local pc = MP:GetModule("PartyCooldowns")
+    if pc and pc.RebuildAll then pc:RebuildAll() end
+end
+
+function TrinketTracker:OnEnable()
+    self.trinkets = ScanEquippedTrinkets()
+    self.active = true
+    local pc = MP:GetModule("PartyCooldowns")
+    if pc and pc.RebuildAll then pc:RebuildAll() end
+end
+
 ----------------------------------------------------------------------
 -- Register
 ----------------------------------------------------------------------

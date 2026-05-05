@@ -255,6 +255,11 @@ function DispelTracker:OnDisable()
     self.members = {}
 end
 
+function DispelTracker:OnEnable()
+    ScanGroup()
+    self.active = true
+end
+
 function DispelTracker:OnPlayerEnteringWorld()
     -- Handled via OnEvent
 end

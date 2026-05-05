@@ -275,7 +275,7 @@ function KeystoneTracker:OnDisable()
 end
 
 function KeystoneTracker:OnEnable()
-    -- Affix row will repopulate at next run start or /mp display.
+    UpdateKeystoneInfo()
 end
 
 MP:RegisterModule("KeystoneTracker", KeystoneTracker)
