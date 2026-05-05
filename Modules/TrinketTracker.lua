@@ -24,6 +24,8 @@ local TrinketTracker = {
         "UNIT_SPELLCAST_SUCCEEDED",
         "PLAYER_EQUIPMENT_CHANGED",
         "PLAYER_ENTERING_WORLD",
+        "PLAYER_SPECIALIZATION_CHANGED",
+        "SPELLS_CHANGED",
         "CHALLENGE_MODE_RESET",
         "CHALLENGE_MODE_COMPLETED",
     },
@@ -92,12 +94,30 @@ end
 local function StartCooldown(spellID)
     local data = TrinketTracker.trinkets[spellID]
     if not data then return end
-    data.cdEnd = GetTime() + data.duration
 
-    -- Optional: surface to PartyCooldowns row by writing to the icon if it
-    -- happens to track this spell. Most trinket spell IDs won't match
-    -- TRACKED_SPELLS, so this is a no-op unless a trinket dovetails with
-    -- a tracked class CD.
+    -- Re-query duration if it was zero at scan time (transient during equip)
+    if (data.duration or 0) == 0 then
+        if C_Spell and C_Spell.GetSpellCooldown then
+            local info = C_Spell.GetSpellCooldown(spellID)
+            if info then
+                local ok, val = pcall(function()
+                    local d = tonumber(info.duration)
+                    return (d and d > 0) and d or 0
+                end)
+                data.duration = (ok and val) or 0
+            end
+        end
+    end
+
+    local duration = data.duration or 0
+    data.cdEnd = GetTime() + duration
+
+    if duration > 0 then
+        local pc = MP:GetModule("PartyCooldowns")
+        if pc and pc.StartTrinketCooldown then
+            pc:StartTrinketCooldown(spellID, duration)
+        end
+    end
 end
 
 ----------------------------------------------------------------------
@@ -155,9 +175,26 @@ function TrinketTracker:OnEvent(event, ...)
         end
 
     elseif event == "PLAYER_EQUIPMENT_CHANGED" then
-        -- Re-scan when trinkets swap mid-run
+        -- Re-scan when trinkets swap; rebuild PartyCooldowns row so icon appears/disappears
         C_Timer.After(0.5, function()
             self.trinkets = ScanEquippedTrinkets()
+            local pc = MP:GetModule("PartyCooldowns")
+            if pc and pc.RebuildAll then pc:RebuildAll() end
+        end)
+
+    elseif event == "PLAYER_SPECIALIZATION_CHANGED" or event == "SPELLS_CHANGED" then
+        -- Spec change or spell book update may expose trinket spells that returned 0-CD earlier
+        C_Timer.After(0.5, function()
+            local newTrinkets = ScanEquippedTrinkets()
+            -- Preserve in-flight cdEnd values for spells already tracked
+            for spellID, existing in pairs(self.trinkets) do
+                if newTrinkets[spellID] then
+                    newTrinkets[spellID].cdEnd = existing.cdEnd
+                end
+            end
+            self.trinkets = newTrinkets
+            local pc = MP:GetModule("PartyCooldowns")
+            if pc and pc.RebuildAll then pc:RebuildAll() end
         end)
 
     elseif event == "PLAYER_ENTERING_WORLD" then

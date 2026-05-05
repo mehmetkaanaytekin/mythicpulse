@@ -147,8 +147,7 @@ function MP.TrackerFrame:UpdateVisibility()
         return
     end
 
-    local inInstance, instanceType = IsInInstance()
-    local shouldShow = MP:IsInMythicPlus() or instanceType == "party" or instanceType == "raid"
+    local shouldShow = MP:ShouldShowHUD()
 
     if shouldShow then
         self.frame:Show()

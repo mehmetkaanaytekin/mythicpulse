@@ -13,6 +13,7 @@ local DungeonHistory = {
 -- Record a completed run
 ----------------------------------------------------------------------
 function DungeonHistory:RecordRun(runData)
+    if not MP:IsModuleEnabled("dungeonHistory") then return end
     if not MP.db or not MP.db.history then return end
     if not runData.mapID or runData.mapID <= 0 then return end
     if not runData.keyLevel or runData.keyLevel <= 0 then return end
@@ -34,6 +35,7 @@ end
 -- Get personal best for a dungeon at a given key level
 ----------------------------------------------------------------------
 function DungeonHistory:GetPersonalBest(mapID, keyLevel)
+    if not MP:IsModuleEnabled("dungeonHistory") then return nil end
     if not MP.db or not MP.db.history then return nil end
 
     local best = nil

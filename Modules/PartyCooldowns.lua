@@ -183,11 +183,14 @@ local function GetCfg()
 end
 
 local DISPEL_COLORS = {
-    magic   = {0.20, 0.45, 1.00},
-    curse   = {0.55, 0.10, 0.85},
-    disease = {0.55, 0.85, 0.10},
-    poison  = {0.10, 0.90, 0.35},
-    enrage  = {1.00, 0.25, 0.25},
+    magic    = {0.20, 0.45, 1.00},
+    curse    = {0.55, 0.10, 0.85},
+    disease  = {0.55, 0.85, 0.10},
+    poison   = {0.10, 0.90, 0.35},
+    enrage   = {1.00, 0.25, 0.25},
+    offMagic = {0.60, 0.60, 0.60},
+    mass     = {0.60, 0.60, 0.60},
+    immunity = {0.80, 0.70, 0.20},
 }
 
 ----------------------------------------------------------------------
@@ -411,6 +414,7 @@ local function UpdateDispelIndicator(row)
 
     local dt = MP:GetModule("DispelTracker")
     if not dt then row.dispelBar:Hide(); return end
+    if not MP:IsModuleEnabled("dispelTracker") then row.dispelBar:Hide(); return end
     local unit = row.unitToken
     if not unit or not UnitExists(unit) then row.dispelBar:Hide(); return end
 
@@ -448,6 +452,25 @@ local function PopulateRow(row, unit)
     local limited = {}
     for j = 1, math.min(#spells, cfg.maxIcons or 8) do limited[j] = spells[j] end
     BuildPlayerIcons(row, limited)
+
+    -- Restore in-flight trinket cooldowns after a row rebuild
+    if unit == "player" then
+        local tt = MP:GetModule("TrinketTracker")
+        if tt and tt.active and tt.trinkets then
+            local now = GetTime()
+            for sID, tData in pairs(tt.trinkets) do
+                if (tData.cdEnd or 0) > now then
+                    for _, icon in ipairs(row.icons) do
+                        if icon.spellID == sID then
+                            icon:StartCooldown(tData.cdEnd - now)
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+
     UpdateDispelIndicator(row)
 
     if not AnchorRowToUnitFrame(row, unit) then
@@ -714,6 +737,27 @@ end
 function PartyCooldowns:RebuildAll()
     if not self.active then return end
     ScanGroup()
+end
+
+--- Refresh dispel bar color/visibility on all visible rows (called on dispelTracker enable/disable)
+function PartyCooldowns:RefreshDispelBars()
+    for _, row in ipairs(rows) do
+        if row:IsShown() then
+            UpdateDispelIndicator(row)
+        end
+    end
+end
+
+--- Start a cooldown sweep on the local player's trinket icon (called by TrinketTracker)
+function PartyCooldowns:StartTrinketCooldown(spellID, duration)
+    local row = unitToRow["player"]
+    if not row then return end
+    for _, icon in ipairs(row.icons) do
+        if icon.spellID == spellID then
+            icon:StartCooldown(duration)
+            return
+        end
+    end
 end
 
 ----------------------------------------------------------------------

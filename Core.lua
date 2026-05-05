@@ -209,6 +209,12 @@ function MP:IsInMythicPlus()
     return mapID and mapID > 0
 end
 
+--- Check if HUD frames should be visible (M+ or Demo override).
+--- Demo monkey-patches IsInMythicPlus to return true, so this inherits that.
+function MP:ShouldShowHUD()
+    return self:IsInMythicPlus()
+end
+
 --- Get the current key level of the active run
 function MP:GetActiveKeyLevel()
     if not self:IsInMythicPlus() then return 0 end
@@ -386,13 +392,13 @@ SlashCmdList["MYTHICPULSE"] = function(input)
 
     if cmd == "" or cmd == "help" then
         MP:Print("|cff00ccffMythicPulse Commands:|r")
-        MP:Print("  /mp display  — Preview frames with mock data (for layout)")
+        MP:Print("  /mp display  — Show all frames with mock data (for placement)")
         MP:Print("  /mp config   — Open settings")
         MP:Print("  /mp lock     — Lock/unlock frames")
         MP:Print("  /mp reset    — Reset frame positions")
         MP:Print("  /mp keys     — Announce all party keys")
         MP:Print("  /mp utility  — Toggle dungeon utility")
-        MP:Print("|cff999999  Frames auto-show in combat/M+; no manual toggle needed.|r")
+        MP:Print("|cff999999  Frames only show inside an active Mythic+ key. Use /mp display to position them anywhere.|r")
         
     elseif cmd == "config" or cmd == "options" or cmd == "settings" then
         if MP.ConfigPanel and MP.ConfigPanel.Toggle then
@@ -414,8 +420,11 @@ SlashCmdList["MYTHICPULSE"] = function(input)
             if MP.InterruptFrame and MP.InterruptFrame.UpdateLock then
                 MP.InterruptFrame:UpdateLock()
             end
+            if MP.CombatResFrame and MP.CombatResFrame.UpdateLock then
+                MP.CombatResFrame:UpdateLock()
+            end
         end
-        
+
     elseif cmd == "reset" then
         if MP.MainFrame and MP.MainFrame.ResetPosition then
             MP.MainFrame:ResetPosition()
@@ -425,6 +434,9 @@ SlashCmdList["MYTHICPULSE"] = function(input)
         end
         if MP.InterruptFrame and MP.InterruptFrame.ResetPosition then
             MP.InterruptFrame:ResetPosition()
+        end
+        if MP.CombatResFrame and MP.CombatResFrame.ResetPosition then
+            MP.CombatResFrame:ResetPosition()
         end
         MP:Print("Frame positions reset.")
         

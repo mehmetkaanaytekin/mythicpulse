@@ -504,11 +504,11 @@ function DungeonUtility:OnEvent(event, ...)
                     DungeonUtility.currentDungeonID = instanceID
                     DungeonUtility:PopulateForDungeon(instanceID)
 
-                    -- Auto-show if enabled
+                    -- Auto-show if enabled (only when module is active)
                     local autoShow = MP.db and MP.db.modules and
                                      MP.db.modules.dungeonUtility and
                                      MP.db.modules.dungeonUtility.autoShow
-                    if autoShow and MP.UtilityFrame then
+                    if autoShow and MP.UtilityFrame and MP:IsModuleEnabled("dungeonUtility") then
                         MP.UtilityFrame:Show()
                     end
                 end
@@ -545,12 +545,26 @@ function DungeonUtility:OnConfigReset()
     self:Refresh()
 end
 
+function DungeonUtility:OnDisable()
+    if MP.UtilityFrame and MP.UtilityFrame.frame then
+        MP.UtilityFrame:Hide()
+    end
+end
+
+function DungeonUtility:OnEnable()
+    self.isDirty = true
+end
+
 ----------------------------------------------------------------------
 -- Toggle the Utility Window
 ----------------------------------------------------------------------
 
 function DungeonUtility:Toggle()
     if not MP.UtilityFrame then return end
+    if not MP:IsModuleEnabled("dungeonUtility") then
+        MP:Print("Dungeon Utility is disabled. Enable it in /mp config → Modules.")
+        return
+    end
 
     -- Ensure we have ability data
     if self.isDirty then

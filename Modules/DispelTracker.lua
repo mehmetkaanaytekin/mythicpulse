@@ -173,7 +173,6 @@ end
 --- value in M+ instances and reading it directly crashes the addon).
 function DispelTracker:CanLocalPlayerDispelUnit(unit)
     if not unit or not UnitExists(unit) then return nil end
-    if UnitIsUnit(unit, "player") then return nil end
 
     local playerTypes = self:GetLocalPlayerDispelTypes()
     if not next(playerTypes) then return nil end
@@ -253,11 +252,15 @@ end
 function DispelTracker:OnDisable()
     self.active = false
     self.members = {}
+    local pc = MP:GetModule("PartyCooldowns")
+    if pc and pc.RefreshDispelBars then pc:RefreshDispelBars() end
 end
 
 function DispelTracker:OnEnable()
     ScanGroup()
     self.active = true
+    local pc = MP:GetModule("PartyCooldowns")
+    if pc and pc.RefreshDispelBars then pc:RefreshDispelBars() end
 end
 
 function DispelTracker:OnPlayerEnteringWorld()

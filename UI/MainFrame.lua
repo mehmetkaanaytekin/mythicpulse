@@ -179,13 +179,13 @@ function MP.MainFrame:UpdateVisibility()
         return
     end
 
-    if MP:IsInMythicPlus() then
+    if MP:ShouldShowHUD() then
         self.frame:Show()
     else
         -- Keep visible briefly after leaving M+, then auto-hide
         if not self.hideTimer then
             self.hideTimer = C_Timer.NewTimer(5, function()
-                if not MP:IsInMythicPlus() and self.manualState ~= "shown" and self.frame then
+                if not MP:ShouldShowHUD() and self.manualState ~= "shown" and self.frame then
                     self.frame:Hide()
                 end
                 self.hideTimer = nil

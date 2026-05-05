@@ -1,5 +1,35 @@
 # MythicPulse Changelog
 
+## 1.2.2 — 2026-05-06
+
+### Features
+
+**M+-Only Activation**
+- All HUD frames (Timer, Party CDs, Interrupt, Combat/BRes) now only appear inside an active Mythic+ key. They no longer show in heroic dungeons or raids.
+- Use `/mp display` (or the "Toggle Preview" button in settings) anywhere to show all frames with mock data for placement.
+- `ShouldShowHUD()` helper added to Core.lua as the single source of truth — inherits Demo's `IsInMythicPlus` override automatically.
+
+### Bug Fixes
+
+**Module Enable/Disable**
+- Fixed: Dungeon History checkbox now prevents run recording when disabled (was silently recording regardless).
+- Fixed: Dungeon Utility checkbox now immediately hides the utility panel when disabled; `/mp utility` and auto-show on dungeon enter are suppressed.
+- Fixed: Dispel Tracker checkbox now instantly clears dispel bars from all party rows when disabled; re-enabling refreshes them immediately.
+- Fixed: "Show Interrupt Tracker in Combat Only" checkbox now correctly toggles the Interrupt frame visibility (was calling a non-existent method).
+- Fixed: `/mp lock` and `/mp reset` now also apply to the Combat/BRes frame (was previously missed).
+
+**Trinket Tracker**
+- Fixed: Pressing an on-use trinket now actually starts the cooldown sweep on its icon in the Party Cooldowns row. The sweep was being recorded internally but never displayed.
+- Fixed: Equipping a different trinket now rebuilds the Party Cooldowns row so the correct icon appears within ~0.5s.
+- Fixed: Trinket cooldowns are now restored after a row rebuild (e.g. spec change or group roster update) — the icon picks up mid-flight cooldowns.
+- Fixed: `SPELLS_CHANGED` and `PLAYER_SPECIALIZATION_CHANGED` now trigger a rescan so trinkets whose spell duration returned 0 on equip are caught when the game catches up.
+
+**Dispel Tracker**
+- Fixed: The dispel-ready colored bar now also appears on the local player's own Party Cooldowns row when they have a self-dispellable debuff (Magic/Curse/Poison/Disease for applicable classes). Previously this was always suppressed.
+- Added missing `DISPEL_COLORS` entries for `offMagic`, `mass`, and `immunity` dispel types (shown as grey/gold) so offensive-dispel classes (Mage, Hunter, Rogue, Warrior) get a visual indicator.
+
+---
+
 ## 1.2.1 — 2026-05-05
 
 ### Bug Fixes

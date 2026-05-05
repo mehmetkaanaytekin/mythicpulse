@@ -1,7 +1,7 @@
 ## Interface: 120005
 ## Title: |cff00ccffMythicPulse|r
 ## Author: MythicPulse Team
-## Version: 1.2.1
+## Version: 1.2.2
 ## Notes: All-in-one Mythic+ companion for WoW: Midnight. Spec-aware cooldowns with aura highlights, kick rotation, dispels, trinkets, auto-gossip, score prediction, demo mode, and more.
 ## SavedVariables: MythicPulseDB
 ## IconTexture: Interface\Icons\inv_relics_hourglass

@@ -131,8 +131,7 @@ end
 function MP.CombatResFrame:UpdateVisibility()
     if self.manualState == "hidden" then self.frame:Hide(); return end
     if self.manualState == "shown"  then self.frame:Show(); return end
-    local _, instanceType = IsInInstance()
-    local shouldShow = MP:IsInMythicPlus() or instanceType == "party" or instanceType == "raid"
+    local shouldShow = MP:ShouldShowHUD()
     if shouldShow then self.frame:Show() else self.frame:Hide() end
 end
 

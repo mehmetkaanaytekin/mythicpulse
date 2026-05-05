@@ -582,8 +582,9 @@ local function BuildPanel()
         p:Header("Interrupts")
         p:Check("Auto-Announce Kick Rotation", "modules.interruptTracker.autoAnnounce")
         p:Check("Show Interrupt Tracker in Combat Only", "modules.interruptTracker.showInCombatOnly", function(v)
-            local it = MP:GetModule("InterruptTracker")
-            if it and it.UpdateVisibility then it:UpdateVisibility() end
+            if MP.InterruptFrame and MP.InterruptFrame.UpdateVisibility then
+                MP.InterruptFrame:UpdateVisibility()
+            end
         end)
 
         p:Gap(12)
