@@ -3,7 +3,7 @@
 ## Author: MythicPulse Team
 ## Version: 1.2.2
 ## Notes: All-in-one Mythic+ companion for WoW: Midnight. Spec-aware cooldowns with aura highlights, kick rotation, dispels, trinkets, auto-gossip, score prediction, demo mode, and more.
-## Notes-ruRU: Универсальный аддон для M+. Учитывает время восстановления способностей в зависимости от специализации, подсветку аур, ротацию прерываний, снятие негативных эффектов, аксессуары, автоматические диалоги, прогнозирование результатов, деморежим и многое другое.
+## Notes-ruRU: Универсальный аддон для M+ подземелий. Учитывает время восстановления способностей в зависимости от специализации, подсветку аур, ротацию прерываний, снятие негативных эффектов, аксессуары, автоматические диалоги, прогнозирование результатов, деморежим и многое другое.
 ## SavedVariables: MythicPulseDB
 ## IconTexture: Interface\Icons\inv_relics_hourglass
 ## X-Category: Dungeons & Raids
