@@ -25,28 +25,28 @@ local COL_W       = math.floor((PANEL_WIDTH - PADDING * 2 - CARD_PAD * 2) / 3)
 ----------------------------------------------------------------------
 local TIER_THEME = {
     [3] = {
-        name = "+3 CHEST",
+        name = MP:Loc("RS_TIER_PLUS3"),
         bg   = { r=0.18, g=0.14, b=0.04, a=0.92 },
         bd   = { r=1.00, g=0.82, b=0.10, a=0.85 },
         glow = { r=1.00, g=0.82, b=0.10, a=0.30 },
         tierColor = { 1.00, 0.85, 0.20 },
     },
     [2] = {
-        name = "+2 CHEST",
+        name = MP:Loc("RS_TIER_PLUS2"),
         bg   = { r=0.13, g=0.13, b=0.16, a=0.92 },
         bd   = { r=0.78, g=0.80, b=0.86, a=0.75 },
         glow = { r=0.78, g=0.80, b=0.86, a=0.20 },
         tierColor = { 0.85, 0.88, 0.95 },
     },
     [1] = {
-        name = "+1 TIMED",
+        name = MP:Loc("RS_TIER_PLUS1"),
         bg   = { r=0.14, g=0.10, b=0.06, a=0.92 },
         bd   = { r=0.82, g=0.55, b=0.30, a=0.75 },
         glow = { r=0.82, g=0.55, b=0.30, a=0.20 },
         tierColor = { 0.95, 0.65, 0.35 },
     },
     [0] = {
-        name = "DEPLETED",
+        name = MP:Loc("RS_TIER_DEPLETED"),
         bg   = { r=0.18, g=0.06, b=0.06, a=0.92 },
         bd   = { r=0.85, g=0.20, b=0.20, a=0.75 },
         glow = { r=0.85, g=0.20, b=0.20, a=0.15 },
@@ -166,7 +166,7 @@ local function BuildPanel()
     f.titleText:SetFontObject(MP.Fonts.Header)
     f.titleText:SetTextColor(MP.COLORS.brand.r, MP.COLORS.brand.g, MP.COLORS.brand.b)
     f.titleText:SetPoint("TOPLEFT", PADDING, -PADDING)
-    f.titleText:SetText("|TInterface\\Icons\\inv_relics_hourglass:18|t  RUN SUMMARY")
+    f.titleText:SetText("|TInterface\\Icons\\inv_relics_hourglass:18|t  " .. MP:Loc("RS_TITLE"))
 
     f.close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
     f.close:SetPoint("TOPRIGHT", -4, -4)
@@ -255,7 +255,7 @@ local function BuildPanel()
     end
 
     -- ── Card 1: TIME PERFORMANCE ───────────────────────────────────────
-    local timeCard = MakeCard(f, "TIME PERFORMANCE")
+    local timeCard = MakeCard(f, MP:Loc("RS_CARD_TIME_PERF"))
     timeCard:SetPoint("TOPLEFT",  f, "TOPLEFT",  PADDING,  0)  -- y set in layout
     timeCard:SetPoint("TOPRIGHT", f, "TOPRIGHT", -PADDING, 0)
     f.timeCard = timeCard
@@ -274,15 +274,15 @@ local function BuildPanel()
     timeCard.plus3Line:Hide()
 
     -- Three columns under the bar
-    timeCard.colElapsed = MakeColumn(timeCard.body, "ELAPSED")
+    timeCard.colElapsed = MakeColumn(timeCard.body, MP:Loc("RS_COL_ELAPSED"))
     timeCard.colElapsed:SetPoint("TOPLEFT", timeBar, "BOTTOMLEFT", 0, -8)
     timeCard.colElapsed:SetWidth(COL_W)
 
-    timeCard.colVs2 = MakeColumn(timeCard.body, "vs +2 TIMER")
+    timeCard.colVs2 = MakeColumn(timeCard.body, MP:Loc("RS_COL_VS_TIMER"))
     timeCard.colVs2:SetPoint("LEFT", timeCard.colElapsed, "RIGHT", 0, 0)
     timeCard.colVs2:SetWidth(COL_W)
 
-    timeCard.colPB = MakeColumn(timeCard.body, "vs PB")
+    timeCard.colPB = MakeColumn(timeCard.body, MP:Loc("RS_COL_VS_PB"))
     timeCard.colPB:SetPoint("LEFT", timeCard.colVs2, "RIGHT", 0, 0)
     timeCard.colPB:SetWidth(COL_W)
 
@@ -291,7 +291,7 @@ local function BuildPanel()
     timeCard.body:SetHeight(18 + 8 + 34)
 
     -- ── Card 2: DEATHS | CASUALTIES ────────────────────────────────────
-    local deathCard = MakeCard(f, "DEATHS  |  CASUALTIES")
+    local deathCard = MakeCard(f, MP:Loc("RS_CARD_DEATHS"))
     deathCard:SetPoint("TOPLEFT",  f, "TOPLEFT",  PADDING,  0)
     deathCard:SetPoint("TOPRIGHT", f, "TOPRIGHT", -PADDING, 0)
     f.deathCard = deathCard
@@ -307,14 +307,14 @@ local function BuildPanel()
     deathCard.deathCount:SetFontObject(MP.Fonts.Number)
     deathCard.deathCount:SetPoint("TOPLEFT", 0, 0)
 
-    deathCard.colTimeLost = MakeColumn(deathCard.body, "TIME LOST")
+    deathCard.colTimeLost = MakeColumn(deathCard.body, MP:Loc("RS_COL_TIME_LOST"))
     deathCard.colTimeLost:SetPoint("LEFT", deathCard.deathCount, "RIGHT", 24, 0)
 
     deathCard.hintText = deathCard.body:CreateFontString(nil, "OVERLAY")
     deathCard.hintText:SetFontObject(MP.Fonts.Small)
     deathCard.hintText:SetTextColor(MP.COLORS.textMuted.r, MP.COLORS.textMuted.g, MP.COLORS.textMuted.b)
     deathCard.hintText:SetPoint("TOPRIGHT", deathCard.body, "TOPRIGHT", 0, 0)
-    deathCard.hintText:SetText("Minimize\nAvoidable!")
+    deathCard.hintText:SetText(MP:Loc("RS_HINT_AVOIDABLE"))
     deathCard.hintText:SetJustifyH("RIGHT")
 
     deathCard._skullPrefix = SKULL
@@ -322,30 +322,30 @@ local function BuildPanel()
     deathCard.body:SetHeight(36)
 
     -- ── Card 3: BOSS SPLITS ─────────────────────────────────────────────
-    local splitsCard = MakeCard(f, "BOSS SPLITS")
+    local splitsCard = MakeCard(f, MP:Loc("RS_CARD_BOSS_SPLITS"))
     splitsCard:SetPoint("TOPLEFT",  f, "TOPLEFT",  PADDING,  0)
     splitsCard:SetPoint("TOPRIGHT", f, "TOPRIGHT", -PADDING, 0)
     f.splitsCard = splitsCard
     splitsCard.rows = {}
 
     -- ── Card 4: SCORE | RATING SUMMARY ────────────────────────────────
-    local scoreCard = MakeCard(f, "SCORE  |  RATING SUMMARY")
+    local scoreCard = MakeCard(f, MP:Loc("RS_CARD_SCORE"))
     scoreCard:SetPoint("TOPLEFT",  f, "TOPLEFT",  PADDING,  0)
     scoreCard:SetPoint("TOPRIGHT", f, "TOPRIGHT", -PADDING, 0)
     f.scoreCard = scoreCard
 
-    scoreCard.colRunScore = MakeColumn(scoreCard.body, "RUN SCORE")
+    scoreCard.colRunScore = MakeColumn(scoreCard.body, MP:Loc("RS_COL_RUN_SCORE"))
     scoreCard.colRunScore:SetPoint("TOPLEFT", scoreCard.body, "TOPLEFT", 0, 0)
     scoreCard.colRunScore:SetWidth(COL_W)
     -- Override val font to Number for the big score
     scoreCard.colRunScore.val:SetFontObject(MP.Fonts.Number)
     scoreCard.colRunScore.val:SetTextColor(MP.COLORS.warning.r, MP.COLORS.warning.g, MP.COLORS.warning.b)
 
-    scoreCard.colPrevBest = MakeColumn(scoreCard.body, "PREVIOUS BEST")
+    scoreCard.colPrevBest = MakeColumn(scoreCard.body, MP:Loc("RS_COL_PREV_BEST"))
     scoreCard.colPrevBest:SetPoint("LEFT", scoreCard.colRunScore, "RIGHT", 0, 0)
     scoreCard.colPrevBest:SetWidth(COL_W)
 
-    scoreCard.colGain = MakeColumn(scoreCard.body, "EST. GAIN")
+    scoreCard.colGain = MakeColumn(scoreCard.body, MP:Loc("RS_COL_EST_GAIN"))
     scoreCard.colGain:SetPoint("LEFT", scoreCard.colPrevBest, "RIGHT", 0, 0)
     scoreCard.colGain:SetWidth(COL_W)
 
@@ -364,19 +364,19 @@ local function BuildPanel()
     local btnClose = CreateFrame("Button", nil, footer, "UIPanelButtonTemplate")
     btnClose:SetSize(btnW, 24)
     btnClose:SetPoint("LEFT", footer, "LEFT", 0, 0)
-    btnClose:SetText("Close")
+    btnClose:SetText(MP:Loc("RS_BTN_CLOSE"))
     btnClose:SetScript("OnClick", function() MP.RunSummary:Hide() end)
     f.btnClose = btnClose
 
     local btnCopy = CreateFrame("Button", nil, footer, "UIPanelButtonTemplate")
     btnCopy:SetSize(btnW, 24)
     btnCopy:SetPoint("CENTER", footer, "CENTER", 0, 0)
-    btnCopy:SetText("Copy to Chat")
+    btnCopy:SetText(MP:Loc("RS_BTN_COPY_CHAT"))
     btnCopy:SetScript("OnClick", function()
         local rd = MP.RunSummary.lastRun
         if not rd then return end
         local pred = MP.ScorePredictor and MP.ScorePredictor.PredictRun and MP.ScorePredictor:PredictRun(rd)
-        local tstr = rd.timed and "TIMED" or "DEPLETED"
+        local tstr = rd.timed and MP:Loc("RS_TIMED") or MP:Loc("RS_DEPLETED")
         local delta = rd.timeLimit > 0 and (rd.timeLimit - rd.elapsed) or 0
         local dSign = delta >= 0 and "-" or "+"
         local msg = string.format("[MythicPulse] %s +%d - %s in %s (%s%s) - %d death%s - score ~%d",
@@ -404,7 +404,7 @@ local function BuildPanel()
         local btnHist = CreateFrame("Button", nil, footer, "UIPanelButtonTemplate")
         btnHist:SetSize(btnW, 24)
         btnHist:SetPoint("RIGHT", footer, "RIGHT", 0, 0)
-        btnHist:SetText("Open History")
+        btnHist:SetText(MP:Loc("RS_BTN_OPEN_HISTORY"))
         btnHist:SetScript("OnClick", function()
             local h = MP:GetModule("DungeonHistory")
             if h and h.ShowSummary then h:ShowSummary() end
@@ -498,7 +498,7 @@ local function PopulateHero(f, runData, pred)
         dname = (dungeon and dungeon.shortName)
              or (C_ChallengeMode and C_ChallengeMode.GetMapUIInfo and
                  C_ChallengeMode.GetMapUIInfo(runData.mapID))
-             or "Unknown"
+             or MP:Loc("UNKNOWN")
     end
     hero.nameText:SetText(string.format("%s  +%d", dname, runData.keyLevel or 0))
 
@@ -510,11 +510,11 @@ local function PopulateHero(f, runData, pred)
     if runData.timed then
         pillBg   = { r=0.05, g=0.20, b=0.08, a=0.85 }
         pillBd   = { r=0.30, g=1.00, b=0.40, a=0.60 }
-        pillText = string.format("|cff4dff4dTIMED  -%s|r", MP:FormatTime(math.abs(delta)))
+        pillText = MP:Loc("RS_PILL_TIMED", MP:FormatTime(math.abs(delta)))
     else
         pillBg   = { r=0.20, g=0.05, b=0.05, a=0.85 }
         pillBd   = { r=1.00, g=0.25, b=0.25, a=0.60 }
-        pillText = string.format("|cffff4040DEPLETED  +%s|r", MP:FormatTime(math.abs(delta)))
+        pillText = MP:Loc("RS_PILL_DEPLETED", MP:FormatTime(math.abs(delta)))
     end
     hero.deltaPill._mpBgColor     = pillBg
     hero.deltaPill._mpBorderColor = pillBd
@@ -636,7 +636,7 @@ local function PopulateTimeCard(f, runData)
                 tc.colPB.val:SetTextColor(MP.COLORS.warning.r, MP.COLORS.warning.g, MP.COLORS.warning.b)
             end
         else
-            tc.colPB.val:SetText("1st run!")
+            tc.colPB.val:SetText(MP:Loc("RS_FIRST_RUN"))
             tc.colPB.val:SetTextColor(MP.COLORS.warning.r, MP.COLORS.warning.g, MP.COLORS.warning.b)
         end
     else
@@ -668,7 +668,7 @@ local function PopulateDeathCard(f, runData)
             penalty = MP.DungeonData and MP.DungeonData:GetDeathPenalty(runData.keyLevel) or 5
         end
         local lost = deaths * penalty
-        dc.colTimeLost.lbl:SetText("TIME LOST")
+        dc.colTimeLost.lbl:SetText(MP:Loc("RS_COL_TIME_LOST"))
         dc.colTimeLost.lbl:Show()
         dc.colTimeLost.val:SetText("+" .. MP:FormatTime(lost))
         dc.colTimeLost.val:SetTextColor(MP.COLORS.danger.r, MP.COLORS.danger.g, MP.COLORS.danger.b)

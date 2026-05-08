@@ -229,7 +229,7 @@ end
 
 function KeystoneTracker:AnnounceKeys()
     if not IsInGroup() then
-        MP:Print("You are not in a group.")
+        MP:Print(MP:Loc("KEY_NOT_IN_GROUP"))
         return
     end
     -- Ask every addon user in the group to send their own keystone link

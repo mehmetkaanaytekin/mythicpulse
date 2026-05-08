@@ -145,13 +145,9 @@ local function RefreshPBDisplay()
     end
     local best = history:GetPersonalBest(Timer.mapID, Timer.keyLevel)
     if best and best.elapsed and best.elapsed > 0 then
-        pbText:SetText(string.format(
-            "PB |cffffffff%s|r  (+%d)",
-            MP:FormatTime(best.elapsed),
-            Timer.keyLevel
-        ))
+        pbText:SetText(MP:Loc("TIMER_PB_FORMAT", MP:FormatTime(best.elapsed), Timer.keyLevel))
     else
-        pbText:SetText("|cff666666No PB yet|r")
+        pbText:SetText(MP:Loc("TIMER_NO_PB"))
     end
 end
 
@@ -200,7 +196,7 @@ local function UpdateDeathRow()
 
     if deaths <= 0 then
         if Timer.active then
-            deathRow:SetText(SKULL_ICON .. "|cff4daa550 Deaths|r")
+            deathRow:SetText(SKULL_ICON .. "|cff4daa55" .. MP:Loc("TIMER_ZERO_DEATHS") .. "|r")
         else
             deathRow:SetText("")
         end
@@ -215,7 +211,7 @@ local function UpdateDeathRow()
         end
     end
     local totalPenalty = deaths * penalty
-    local label = deaths == 1 and "Death" or "Deaths"
+    local label = deaths == 1 and MP:Loc("TIMER_DEATH_SINGULAR") or MP:Loc("TIMER_DEATH_PLURAL")
     if totalPenalty > 0 then
         deathRow:SetText(string.format(
             "%s|cffff5555%d %s|r |cff888888(+%s)|r",
@@ -351,7 +347,7 @@ local function EndRun(completed)
                 timerBar.timerText:SetTextColor(0.3, 1.0, 0.4)
             end
         end
-        MP:Print("|cff4dff4d" .. MP.L["TIMER_COMPLETED"] .. "|r " .. MP:FormatTime(Timer.elapsed))
+        MP:Print("|cff4dff4d" .. MP:Loc("TIMER_COMPLETED") .. "|r " .. MP:FormatTime(Timer.elapsed))
     end
 
     if not Timer.mapID or Timer.mapID <= 0 or (Timer.keyLevel or 0) <= 0 then
@@ -396,16 +392,16 @@ local function ShowSplitTooltip(self)
     if not self.splitData then return end
     local s = self.splitData
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:SetText(s.name or ("Boss " .. s.index), 0, 0.8, 1)
+    GameTooltip:SetText(s.name or MP:Loc("TIMER_BOSS_FALLBACK", s.index), 0, 0.8, 1)
 
-    GameTooltip:AddDoubleLine("Killed at:", MP:FormatTime(s.elapsed), 0.85, 0.85, 0.85, 1, 1, 1)
+    GameTooltip:AddDoubleLine(MP:Loc("TIMER_TOOLTIP_KILLED"), MP:FormatTime(s.elapsed), 0.85, 0.85, 0.85, 1, 1, 1)
 
     local prev = Timer.bossSplits[s.index - 1]
     if prev then
         local delta = s.elapsed - prev.elapsed
-        GameTooltip:AddDoubleLine("Since prev boss:", MP:FormatTime(delta), 0.85, 0.85, 0.85, 0.7, 0.95, 0.7)
+        GameTooltip:AddDoubleLine(MP:Loc("TIMER_TOOLTIP_PREV"), MP:FormatTime(delta), 0.85, 0.85, 0.85, 0.7, 0.95, 0.7)
     else
-        GameTooltip:AddDoubleLine("From start:", MP:FormatTime(s.elapsed), 0.85, 0.85, 0.85, 0.7, 0.95, 0.7)
+        GameTooltip:AddDoubleLine(MP:Loc("TIMER_TOOLTIP_START"), MP:FormatTime(s.elapsed), 0.85, 0.85, 0.85, 0.7, 0.95, 0.7)
     end
 
     local history = MP:GetModule("DungeonHistory")
@@ -423,7 +419,7 @@ local function ShowSplitTooltip(self)
                 r, g, b = 1.0, 0.4, 0.4
             end
             GameTooltip:AddLine(" ")
-            GameTooltip:AddDoubleLine("vs Personal Best:", diffStr, 0.7, 0.7, 0.7, r, g, b)
+            GameTooltip:AddDoubleLine(MP:Loc("TIMER_TOOLTIP_VS_PB"), diffStr, 0.7, 0.7, 0.7, r, g, b)
         end
     end
 
@@ -441,7 +437,7 @@ local function OnBossKill(bossName)
     Timer.bossesKilled = Timer.bossesKilled + 1
     local idx       = Timer.bossesKilled
     local splitTime = Timer.elapsed
-    local displayName = (bossName and bossName ~= "") and bossName or ("Boss " .. idx)
+    local displayName = (bossName and bossName ~= "") and bossName or MP:Loc("TIMER_BOSS_FALLBACK", idx)
 
     local splitData = { index = idx, elapsed = splitTime, name = displayName }
     table.insert(Timer.bossSplits, splitData)
@@ -530,7 +526,7 @@ function Timer:OnEvent(event, ...)
                     name = C_EncounterJournal.GetEncounterInfo(encounterID)
                 end
             end
-            OnBossKill(name or ("Boss " .. (self.bossesKilled + 1)))
+            OnBossKill(name or MP:Loc("TIMER_BOSS_FALLBACK", self.bossesKilled + 1))
         end
 
     elseif event == "WORLD_STATE_TIMER_START" then
@@ -624,7 +620,7 @@ end
 --- OnBossKill is local so this thin wrapper is the only public path.
 function Timer:SimulateBossKill(bossName)
     if self.active then
-        OnBossKill(bossName or ("Boss " .. (self.bossesKilled + 1)))
+        OnBossKill(bossName or MP:Loc("TIMER_BOSS_FALLBACK", self.bossesKilled + 1))
     end
 end
 

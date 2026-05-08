@@ -797,7 +797,7 @@ function PartyCooldowns:StartDemo(demoParty)
 
     if rIdx < #demoParty and not _demoPrinted then
         _demoPrinted = true
-        MP:Print("|cff88ccffDemo:|r Cooldown icons only display where a party/raid frame exists. Join a party or enable raid-style party frames to see all 5 demo slots.")
+        MP:Print(MP:Loc("PC_DEMO_NEEDS_PARTY"))
     end
 
     updateFrame:Show()

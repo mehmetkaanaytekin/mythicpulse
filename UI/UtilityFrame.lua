@@ -210,7 +210,7 @@ local function CreateUtilityFrame()
     f.selectorBtn.text:SetFontObject("GameFontHighlightLarge")
     f.selectorBtn.text:SetPoint("LEFT", 6, 0)
     f.selectorBtn.text:SetTextColor(0.7, 0.7, 0.8)
-    f.selectorBtn.text:SetText("Select Dungeon...")
+    f.selectorBtn.text:SetText(MP:Loc("UTILITY_SELECT"))
 
     f.selectorBtn.arrow = f.selectorBtn:CreateTexture(nil, "OVERLAY")
     f.selectorBtn.arrow:SetSize(16, 16)
@@ -285,7 +285,7 @@ local function CreateUtilityFrame()
     f.emptyText:SetFontObject(MP.Fonts and MP.Fonts.Body or "GameFontNormal")
     f.emptyText:SetPoint("TOP", f.separator, "BOTTOM", 0, -20)
     f.emptyText:SetTextColor(0.5, 0.5, 0.6)
-    f.emptyText:SetText("No utility abilities for this dungeon")
+    f.emptyText:SetText(MP:Loc("UTILITY_NO_ABILITIES"))
     f.emptyText:Hide()
 
     -- Storage for ability rows
@@ -351,7 +351,7 @@ function MP.UtilityFrame:RefreshContent()
 
     -- Update header
     local UD = MP.UtilityData
-    local dungeonName = UD and UD.dungeonNames and UD.dungeonNames[du.currentDungeonID] or "Unknown Dungeon"
+    local dungeonName = UD and UD.dungeonNames and UD.dungeonNames[du.currentDungeonID] or MP:Loc("UTILITY_UNKNOWN")
     self.frame.headerText:SetText(dungeonName)
     self.frame.selectorBtn.text:SetText(dungeonName)
 
@@ -518,7 +518,7 @@ function MP.UtilityFrame:ConfigureAbilityRow(row, ability)
     local name = ability.spellName or du:GetSpellName(spellID)
     if ability.tagsTable and ability.tagsTable.self_only then
         -- Text marker for self-only abilities (triangle symbol is not supported by standard WoW fonts)
-        name = "|cffaaaaaa(Self)|r " .. name
+        name = "|cffaaaaaa" .. MP:Loc("UTILITY_SELF_PREFIX") .. "|r " .. name
     end
     row.nameText:SetText(name)
 

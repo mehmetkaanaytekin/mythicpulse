@@ -53,7 +53,7 @@ local function TrySlotKeystone()
 
     local ok = pcall(C_ChallengeMode.SlotKeystone, bag, slot)
     if ok and C_ChallengeMode.HasSlottedKeystone() then
-        MP:Print("|cff4dff4dKeystone auto-slotted!|r")
+        MP:Print(MP:Loc("AUTOSLOT_DONE"))
         return true
     end
     return false

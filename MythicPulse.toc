@@ -1,9 +1,14 @@
 ## Interface: 120005
 ## Title: |cff00ccffMythicPulse|r
 ## Author: MythicPulse Team
-## Version: 1.2.2
+## Version: 1.2.3
 ## Notes: All-in-one Mythic+ companion for WoW: Midnight. Spec-aware cooldowns with aura highlights, kick rotation, dispels, trinkets, auto-gossip, score prediction, demo mode, and more.
 ## Notes-ruRU: Универсальный аддон для M+ подземелий. Учитывает время восстановления способностей в зависимости от специализации, подсветку аур, ротацию прерываний, снятие негативных эффектов, аксессуары, автоматические диалоги, прогнозирование результатов, деморежим и многое другое.
+## Notes-frFR: Compagnon tout-en-un pour les donjons Mythique+. Délais de récupération avec conscience de la spécialisation, mise en évidence des auras, rotation des interruptions, dissipations, objets, dialogues automatiques, prédiction de score, mode démo et plus encore.
+## Notes-deDE: Universeller M+-Begleiter. Spezialisierungsbewusste Abklingzeiten mit Aura-Hervorhebungen, Unterbrechungsrotation, Entzauberungen, Trinkets, Auto-Dialoge, Punktzahl-Vorhersage, Demo-Modus und mehr.
+## Notes-esES: Compañero integral para mazmorras Míticas+. Enfriamientos con consciencia de especialización, resaltado de auras, rotación de interrupciones, disipar, baratijas, diálogos automáticos, predicción de puntuación, modo de demostración y más.
+## Notes-itIT: Compagno completo per i dungeon Mitici+. Cooldown con coscienza della specializzazione, evidenziazione delle aure, rotazione delle interruzioni, dispel, oggetti, dialoghi automatici, previsione del punteggio, modalità demo e altro ancora.
+## Notes-ptBR: Companheiro completo para masmorras Míticas+. Cooldowns com consciência de especialização, destaque de auras, rotação de interrupções, dissipar, itens, diálogos automáticos, previsão de pontuação, modo de demonstração e mais.
 ## SavedVariables: MythicPulseDB
 ## IconTexture: Interface\Icons\inv_relics_hourglass
 ## X-Category: Dungeons & Raids
@@ -18,6 +23,11 @@
 # === Localization ===
 Locales\enUS.lua
 Locales\ruRU.lua
+Locales\frFR.lua
+Locales\deDE.lua
+Locales\esES.lua
+Locales\itIT.lua
+Locales\ptBR.lua
 
 # === Data ===
 Data\Dungeons.lua

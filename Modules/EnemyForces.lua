@@ -73,7 +73,7 @@ local function ApplyForceDisplay(current, total)
 
     if current >= total then
         if progressBar.text then
-            progressBar.text:SetText("|cff4dff4dComplete!|r")
+            progressBar.text:SetText("|cff4dff4d" .. MP:Loc("EF_COMPLETE") .. "|r")
         end
         progressBar:SetStatusBarColor(0.3, 1.0, 0.4, 1.0)
         progressBar:SetPaceMarker(nil)

@@ -331,7 +331,7 @@ local function BuildPanel()
     titleText:SetFontObject(MP.Fonts.UI.Header)
     titleText:SetTextColor(MP.COLORS.brand.r, MP.COLORS.brand.g, MP.COLORS.brand.b)
     titleText:SetPoint("TOPLEFT", f, "TOPLEFT", PAD, -(TITLE_H / 2 - 7))
-    titleText:SetText("MythicPulse  |cff666688Settings|r")
+    titleText:SetText("|cff00ccff" .. MP:Loc("CONFIG_TITLE") .. "|r")
 
     -- Close button
     local closeBtn = CreateFrame("Button", nil, f, "UIPanelCloseButton")
@@ -402,29 +402,29 @@ local function BuildPanel()
     ----------------------------------------------------------------
     -- General
     ----------------------------------------------------------------
-    AddCat("General", function(p)
-        p:Header("Behavior")
-        p:Check("Lock Frame Position", "locked", function()
+    AddCat(MP:Loc("CONFIG_TAB_GENERAL"), function(p)
+        p:Header(MP:Loc("CONFIG_HDR_BEHAVIOR"))
+        p:Check(MP:Loc("CONFIG_LOCK_FRAME_POS"), "locked", function()
             if MP.MainFrame and MP.MainFrame.UpdateLock then MP.MainFrame:UpdateLock() end
         end)
 
         p:Gap(12)
-        p:Header("Actions")
-        p:Btn("Reset HUD Position", 160, function()
+        p:Header(MP:Loc("CONFIG_HDR_ACTIONS"))
+        p:Btn(MP:Loc("CONFIG_RESET_HUD_POS"), 160, function()
             if MP.MainFrame and MP.MainFrame.ResetPosition then
                 MP.MainFrame:ResetPosition()
-                MP:Print("Main frame position reset.")
+                MP:Print(MP:Loc("CONFIG_HUD_POS_RESET"))
             end
         end)
-        p:Btn("Reset All Settings", 160, function()
+        p:Btn(MP:Loc("CONFIG_RESET_ALL"), 160, function()
             StaticPopup_Show("MYTHICPULSE_RESET_CONFIRM")
         end)
-        p:Btn("Reload UI", 140, ReloadUI)
+        p:Btn(MP:Loc("CONFIG_RELOAD_UI"), 140, ReloadUI)
 
         p:Gap(12)
-        p:Header("Preview")
-        p:Note("Load mock data so you can position and resize frames without being in a key.")
-        p:Btn("Toggle Preview", 140, function()
+        p:Header(MP:Loc("CONFIG_HDR_PREVIEW"))
+        p:Note(MP:Loc("CONFIG_PREVIEW_DESC"))
+        p:Btn(MP:Loc("CONFIG_TOGGLE_PREVIEW"), 140, function()
             local demo = MP:GetModule("Demo")
             if demo then
                 if demo.active then demo:Stop() else demo:Start() end
@@ -432,20 +432,21 @@ local function BuildPanel()
         end)
 
         p:Gap(12)
-        p:Header("About")
-        p:Note("MythicPulse v" .. (MP.version or "1.0.0"))
-        p:Note("/mp help  —  list all slash commands")
-        p:Note("/mp config  —  toggle this panel")
+        p:Header(MP:Loc("CONFIG_HDR_ABOUT"))
+        local version = MP.version or "1.0.0"
+        p:Note(MP:Loc("CONFIG_ABOUT_VERSION", version))
+        p:Note(MP:Loc("CONFIG_ABOUT_HELP"))
+        p:Note(MP:Loc("CONFIG_ABOUT_CONFIG"))
     end)
 
     ----------------------------------------------------------------
     -- Display
     ----------------------------------------------------------------
-    AddCat("Display", function(p)
-        p:Header("Main HUD")
+    AddCat(MP:Loc("CONFIG_TAB_DISPLAY"), function(p)
+        p:Header(MP:Loc("CONFIG_HDR_MAIN_HUD"))
         p:SliderRow(
             {
-                label = "Scale",
+                label = MP:Loc("CONFIG_SCALE"),
                 min = 0.5, max = 2.0, step = 0.1,
                 path = "mainFrame.scale",
                 onChange = function(v)
@@ -453,7 +454,7 @@ local function BuildPanel()
                 end,
             },
             {
-                label = "Opacity",
+                label = MP:Loc("CONFIG_OPACITY"),
                 min = 0.1, max = 1.0, step = 0.05,
                 path = "mainFrame.alpha",
                 onChange = function(v)
@@ -463,10 +464,10 @@ local function BuildPanel()
         )
 
         p:Gap(4)
-        p:Header("Interrupt Frame")
+        p:Header(MP:Loc("CONFIG_HDR_INT_FRAME"))
         p:SliderRow(
             {
-                label = "Scale",
+                label = MP:Loc("CONFIG_SCALE"),
                 min = 0.5, max = 2.0, step = 0.1,
                 path = "interruptFrame.scale",
                 onChange = function(v)
@@ -474,7 +475,7 @@ local function BuildPanel()
                 end,
             },
             {
-                label = "Opacity",
+                label = MP:Loc("CONFIG_OPACITY"),
                 min = 0.1, max = 1.0, step = 0.05,
                 path = "interruptFrame.alpha",
                 onChange = function(v)
@@ -484,10 +485,10 @@ local function BuildPanel()
         )
 
         p:Gap(4)
-        p:Header("Font & Icon Sizes")
+        p:Header(MP:Loc("CONFIG_HDR_FONT_ICON"))
         p:SliderRow(
             {
-                label = "Font Scale",
+                label = MP:Loc("CONFIG_FONT_SCALE"),
                 min = 0.7, max = 2.0, step = 0.05,
                 path = "fontScale",
                 onChange = function()
@@ -495,14 +496,14 @@ local function BuildPanel()
                 end,
             },
             {
-                label = "Party CD Icon Size",
+                label = MP:Loc("CONFIG_PC_ICON_SIZE"),
                 min = 20, max = 48, step = 1,
                 path = "modules.partyCooldowns.iconSize",
                 onChange = function() RebuildCDs() end,
             }
         )
-        p:Slider("BRes / BL Icon Size", 28, 56, 1, "modules.combatRes.iconSize", function()
-            MP:Print("|cff88ccffReload UI (/reload)|r to apply icon size changes.")
+        p:Slider(MP:Loc("CONFIG_BRES_ICON_SIZE"), 28, 56, 1, "modules.combatRes.iconSize", function()
+            MP:Print(MP:Loc("CONFIG_ICON_RELOAD"))
         end)
     end)
 
@@ -515,36 +516,36 @@ local function BuildPanel()
         "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT", "CENTER",
     }
 
-    AddCat("Party CDs", function(p)
-        p:Header("Layout")
+    AddCat(MP:Loc("CONFIG_TAB_PARTY_CDS"), function(p)
+        p:Header(MP:Loc("CONFIG_HDR_LAYOUT"))
         p:SliderRow(
             {
-                label = "Icon Gap",
+                label = MP:Loc("CONFIG_ICON_GAP"),
                 min = 0, max = 16, step = 1,
                 path = "modules.partyCooldowns.iconGap",
                 onChange = function() RebuildCDs() end,
             },
             {
-                label = "Max Icons",
+                label = MP:Loc("CONFIG_MAX_ICONS"),
                 min = 1, max = 12, step = 1,
                 path = "modules.partyCooldowns.maxIcons",
                 onChange = function() RebuildCDs() end,
             }
         )
-        p:Slider("Icons Per Row", 1, 12, 1, "modules.partyCooldowns.iconsPerRow", function() RebuildCDs() end)
-        p:Check("Show Dispel Bar", "modules.partyCooldowns.showDispelBar", function() RebuildCDs() end)
+        p:Slider(MP:Loc("CONFIG_ICONS_PER_ROW"), 1, 12, 1, "modules.partyCooldowns.iconsPerRow", function() RebuildCDs() end)
+        p:Check(MP:Loc("CONFIG_SHOW_DISPEL_BAR"), "modules.partyCooldowns.showDispelBar", function() RebuildCDs() end)
 
         p:Gap(4)
-        p:Header("Anchoring")
+        p:Header(MP:Loc("CONFIG_HDR_ANCHORING"))
         p:CycleRow(
             {
-                label   = "Growth Direction",
+                label   = MP:Loc("CONFIG_GROWTH_DIR"),
                 options = GROWTH_OPTS,
                 path    = "modules.partyCooldowns.growthDirection",
                 onChange = function() RebuildCDs() end,
             },
             {
-                label   = "Row Anchor Point",
+                label   = MP:Loc("CONFIG_ROW_ANCHOR"),
                 options = ANCHOR_OPTS,
                 path    = "modules.partyCooldowns.anchorPoint",
                 onChange = function() RebuildCDs() end,
@@ -552,7 +553,7 @@ local function BuildPanel()
         )
         p:CycleRow(
             {
-                label   = "Unit Frame Anchor",
+                label   = MP:Loc("CONFIG_UF_ANCHOR"),
                 options = ANCHOR_OPTS,
                 path    = "modules.partyCooldowns.relativePoint",
                 onChange = function() RebuildCDs() end,
@@ -561,13 +562,13 @@ local function BuildPanel()
         )
         p:SliderRow(
             {
-                label = "Offset X",
+                label = MP:Loc("CONFIG_OFFSET_X"),
                 min = -500, max = 500, step = 1,
                 path = "modules.partyCooldowns.offsetX",
                 onChange = function() RebuildCDs() end,
             },
             {
-                label = "Offset Y",
+                label = MP:Loc("CONFIG_OFFSET_Y"),
                 min = -500, max = 500, step = 1,
                 path = "modules.partyCooldowns.offsetY",
                 onChange = function() RebuildCDs() end,
@@ -578,41 +579,41 @@ local function BuildPanel()
     ----------------------------------------------------------------
     -- Combat
     ----------------------------------------------------------------
-    AddCat("Combat", function(p)
-        p:Header("Interrupts")
-        p:Check("Auto-Announce Kick Rotation", "modules.interruptTracker.autoAnnounce")
-        p:Check("Show Interrupt Tracker in Combat Only", "modules.interruptTracker.showInCombatOnly", function(v)
+    AddCat(MP:Loc("CONFIG_TAB_COMBAT"), function(p)
+        p:Header(MP:Loc("CONFIG_HDR_INTERRUPTS"))
+        p:Check(MP:Loc("CONFIG_AUTO_KICKS"), "modules.interruptTracker.autoAnnounce")
+        p:Check(MP:Loc("CONFIG_INT_COMBAT_ONLY"), "modules.interruptTracker.showInCombatOnly", function(v)
             if MP.InterruptFrame and MP.InterruptFrame.UpdateVisibility then
                 MP.InterruptFrame:UpdateVisibility()
             end
         end)
 
         p:Gap(12)
-        p:Header("Bloodlust / Battle Res")
-        p:Note("Auto-detects: Shaman, Mage, and Hunter (with active pet).")
-        p:Note("More options coming soon.")
+        p:Header(MP:Loc("CONFIG_HDR_BL_BREZ"))
+        p:Note(MP:Loc("CONFIG_BREZ_NOTE"))
+        p:Note(MP:Loc("CONFIG_MORE_SOON"))
     end)
 
     ----------------------------------------------------------------
     -- Utility
     ----------------------------------------------------------------
-    AddCat("Utility", function(p)
-        p:Header("Dungeon Utility Panel")
-        p:Check("Auto-Show When Entering a Dungeon", "modules.dungeonUtility.autoShow")
-        p:Check("Show Ability Remove Buttons", "modules.dungeonUtility.showRemove")
-        p:Check("Hide Non-Important Entries", "modules.dungeonUtility.hideNotImportant")
+    AddCat(MP:Loc("CONFIG_TAB_UTILITY"), function(p)
+        p:Header(MP:Loc("CONFIG_HDR_UTILITY"))
+        p:Check(MP:Loc("CONFIG_UTIL_AUTO_SHOW"), "modules.dungeonUtility.autoShow")
+        p:Check(MP:Loc("CONFIG_UTIL_SHOW_REM"), "modules.dungeonUtility.showRemove")
+        p:Check(MP:Loc("CONFIG_UTIL_HIDE_OPT"), "modules.dungeonUtility.hideNotImportant")
 
         p:Gap(12)
-        p:Header("Run History")
-        p:Slider("Max History Entries", 50, 500, 10, "modules.dungeonHistory.maxEntries")
-        p:Note("Older entries are pruned when the limit is reached.")
+        p:Header(MP:Loc("CONFIG_HDR_HISTORY"))
+        p:Slider(MP:Loc("CONFIG_MAX_HISTORY"), 50, 500, 10, "modules.dungeonHistory.maxEntries")
+        p:Note(MP:Loc("CONFIG_HISTORY_PRUNE"))
     end)
 
     ----------------------------------------------------------------
     -- Modules
     ----------------------------------------------------------------
-    AddCat("Modules", function(p)
-        p:Header("Enable / Disable Modules")
+    AddCat(MP:Loc("CONFIG_TAB_MODULES"), function(p)
+        p:Header(MP:Loc("CONFIG_HDR_MODULES"))
         p:Gap(4)
 
         local function ModToggle(modName)
@@ -622,20 +623,20 @@ local function BuildPanel()
         end
 
         local MODS = {
-            { label = "Dungeon Timer",       path = "modules.timer.enabled",            mod = "Timer" },
-            { label = "Death Tracker",       path = "modules.deathTracker.enabled",     mod = "DeathTracker" },
-            { label = "Enemy Forces",        path = "modules.enemyForces.enabled",      mod = "EnemyForces" },
-            { label = "Keystone Tracker",    path = "modules.keystoneTracker.enabled",  mod = "KeystoneTracker" },
-            { label = "Party Cooldowns",     path = "modules.partyCooldowns.enabled",   mod = "PartyCooldowns" },
-            { label = "Interrupt Tracker",   path = "modules.interruptTracker.enabled", mod = "InterruptTracker" },
-            { label = "Dispel Tracker",      path = "modules.dispelTracker.enabled",    mod = "DispelTracker" },
-            { label = "Trinket Tracker",     path = "modules.trinketTracker.enabled",   mod = "TrinketTracker" },
-            { label = "Auto Gossip",               path = "modules.autoGossip.enabled",   mod = "AutoGossip" },
-            { label = "Battle Res Tracker",  path = "modules.combatRes.enabled",        mod = "CombatRes" },
-            { label = "Dungeon History",     path = "modules.dungeonHistory.enabled",   mod = "DungeonHistory" },
-            { label = "Auto Keystone Slot",  path = "modules.autoSlot.enabled",         mod = "AutoSlot" },
-            { label = "Dungeon Teleports",   path = "modules.dungeonTeleport.enabled",  mod = "DungeonTeleport" },
-            { label = "Dungeon Utility",     path = "modules.dungeonUtility.enabled",   mod = "DungeonUtility" },
+            { label = MP:Loc("CONFIG_MOD_TIMER"),       path = "modules.timer.enabled",            mod = "Timer" },
+            { label = MP:Loc("CONFIG_MOD_DEATHS"),       path = "modules.deathTracker.enabled",     mod = "DeathTracker" },
+            { label = MP:Loc("CONFIG_MOD_FORCES"),        path = "modules.enemyForces.enabled",      mod = "EnemyForces" },
+            { label = MP:Loc("CONFIG_MOD_KEYSTONE"),    path = "modules.keystoneTracker.enabled",  mod = "KeystoneTracker" },
+            { label = MP:Loc("CONFIG_MOD_PARTY_CDS"),     path = "modules.partyCooldowns.enabled",   mod = "PartyCooldowns" },
+            { label = MP:Loc("CONFIG_MOD_INTERRUPT"),   path = "modules.interruptTracker.enabled", mod = "InterruptTracker" },
+            { label = MP:Loc("CONFIG_MOD_DISPEL"),      path = "modules.dispelTracker.enabled",    mod = "DispelTracker" },
+            { label = MP:Loc("CONFIG_MOD_TRINKET"),     path = "modules.trinketTracker.enabled",   mod = "TrinketTracker" },
+            { label = MP:Loc("CONFIG_MOD_GOSSIP"),               path = "modules.autoGossip.enabled",   mod = "AutoGossip" },
+            { label = MP:Loc("CONFIG_MOD_BREZ"),  path = "modules.combatRes.enabled",        mod = "CombatRes" },
+            { label = MP:Loc("CONFIG_MOD_HISTORY"),     path = "modules.dungeonHistory.enabled",   mod = "DungeonHistory" },
+            { label = MP:Loc("CONFIG_MOD_AUTO_SLOT"),  path = "modules.autoSlot.enabled",         mod = "AutoSlot" },
+            { label = MP:Loc("CONFIG_MOD_TELEPORTS"),   path = "modules.dungeonTeleport.enabled",  mod = "DungeonTeleport" },
+            { label = MP:Loc("CONFIG_MOD_UTILITY"),     path = "modules.dungeonUtility.enabled",   mod = "DungeonUtility" },
         }
 
         -- Two-column layout
@@ -658,14 +659,14 @@ local function BuildPanel()
     end)
 
     -- Start on General
-    SelectPage("General")
+    SelectPage(MP:Loc("CONFIG_TAB_GENERAL"))
 
     -- Confirmation dialog (define once)
     if not StaticPopupDialogs["MYTHICPULSE_RESET_CONFIRM"] then
         StaticPopupDialogs["MYTHICPULSE_RESET_CONFIRM"] = {
-            text         = "Reset all MythicPulse settings to defaults?",
-            button1      = "Yes",
-            button2      = "No",
+            text         = MP:Loc("POPUP_RESET_CONFIRM"),
+            button1      = YES,
+            button2      = NO,
             OnAccept     = function()
                 MP:ResetConfig()
                 for _, page in pairs(pages) do page:Refresh() end

@@ -189,6 +189,15 @@ function MP:Debug(...)
     end
 end
 
+--- Localize a string key with optional format args. Falls back to the key itself if the
+--- key is missing from the current locale, so a missing translation shows the key name
+--- rather than nil and avoids UI crashes.
+function MP:Loc(key, ...)
+    local s = (self.L and self.L[key]) or key
+    if select("#", ...) > 0 then return s:format(...) end
+    return s
+end
+
 --- Lerp between two values
 function MP:Lerp(a, b, t)
     return a + (b - a) * t
@@ -367,14 +376,14 @@ function MythicPulse_OnAddonCompartmentEnter(addonName, menuButtonFrame)
     local mapID = C_MythicPlus.GetOwnedKeystoneMapID()
     if level and level > 0 and mapID then
         local name = C_ChallengeMode.GetMapUIInfo(mapID)
-        GameTooltip:AddLine(string.format("Key: %s +%d", name or "?", level), 0.9, 0.9, 0.9)
+        GameTooltip:AddLine(MP:Loc("COMPARTMENT_KEY_FORMAT", name or "?", level), 0.9, 0.9, 0.9)
     else
-        GameTooltip:AddLine("No keystone", 0.5, 0.5, 0.5)
+        GameTooltip:AddLine(MP:Loc("NO_KEY"), 0.5, 0.5, 0.5)
     end
 
     GameTooltip:AddLine(" ")
-    GameTooltip:AddLine("|cffffffffLeft-click:|r Toggle display", 0.7, 0.7, 0.7)
-    GameTooltip:AddLine("|cffffffffRight-click:|r Open settings", 0.7, 0.7, 0.7)
+    GameTooltip:AddLine(MP:Loc("COMPARTMENT_LEFT_CLICK"), 0.7, 0.7, 0.7)
+    GameTooltip:AddLine(MP:Loc("COMPARTMENT_RIGHT_CLICK"), 0.7, 0.7, 0.7)
     GameTooltip:Show()
 end
 
@@ -391,14 +400,14 @@ SlashCmdList["MYTHICPULSE"] = function(input)
     local cmd = strtrim(input):lower()
 
     if cmd == "" or cmd == "help" then
-        MP:Print("|cff00ccffMythicPulse Commands:|r")
-        MP:Print("  /mp display  — Show all frames with mock data (for placement)")
-        MP:Print("  /mp config   — Open settings")
-        MP:Print("  /mp lock     — Lock/unlock frames")
-        MP:Print("  /mp reset    — Reset frame positions")
-        MP:Print("  /mp keys     — Announce all party keys")
-        MP:Print("  /mp utility  — Toggle dungeon utility")
-        MP:Print("|cff999999  Frames only show inside an active Mythic+ key. Use /mp display to position them anywhere.|r")
+        MP:Print("|cff00ccff" .. MP:Loc("SLASH_HELP_HEADER") .. "|r")
+        MP:Print(MP:Loc("SLASH_HELP_DISPLAY"))
+        MP:Print(MP:Loc("SLASH_HELP_CONFIG"))
+        MP:Print(MP:Loc("SLASH_HELP_LOCK"))
+        MP:Print(MP:Loc("SLASH_HELP_RESET"))
+        MP:Print(MP:Loc("SLASH_HELP_KEYS"))
+        MP:Print(MP:Loc("SLASH_HELP_UTILITY"))
+        MP:Print("|cff999999  " .. MP:Loc("SLASH_HELP_FOOTNOTE") .. "|r")
         
     elseif cmd == "config" or cmd == "options" or cmd == "settings" then
         if MP.ConfigPanel and MP.ConfigPanel.Toggle then
@@ -410,7 +419,7 @@ SlashCmdList["MYTHICPULSE"] = function(input)
     elseif cmd == "lock" then
         if MP.db then
             MP.db.locked = not MP.db.locked
-            MP:Print("Frames " .. (MP.db.locked and "locked" or "unlocked"))
+            MP:Print(MP.db.locked and MP:Loc("SLASH_FRAMES_LOCKED") or MP:Loc("SLASH_FRAMES_UNLOCKED"))
             if MP.MainFrame and MP.MainFrame.UpdateLock then
                 MP.MainFrame:UpdateLock()
             end
@@ -438,20 +447,20 @@ SlashCmdList["MYTHICPULSE"] = function(input)
         if MP.CombatResFrame and MP.CombatResFrame.ResetPosition then
             MP.CombatResFrame:ResetPosition()
         end
-        MP:Print("Frame positions reset.")
+        MP:Print(MP:Loc("SLASH_RESET_DONE"))
         
     elseif cmd == "keys" then
         local kt = MP:GetModule("KeystoneTracker")
         if kt and kt.AnnounceKeys then
             kt:AnnounceKeys()
         else
-            MP:Print("Keystone tracker unavailable.")
+            MP:Print(MP:Loc("SLASH_KEYSTONE_UNAVAIL"))
         end
 
     elseif cmd == "debug" then
         if MP.db then
             MP.db.debug = not MP.db.debug
-            MP:Print("Debug mode " .. (MP.db.debug and "enabled" or "disabled"))
+            MP:Print(MP.db.debug and MP:Loc("SLASH_DEBUG_ON") or MP:Loc("SLASH_DEBUG_OFF"))
         end
         
     elseif cmd == "utility" or cmd == "util" then
@@ -464,7 +473,7 @@ SlashCmdList["MYTHICPULSE"] = function(input)
         if MP.Demo and MP.Demo.Toggle then
             MP.Demo:Toggle()
         else
-            MP:Print("Display preview unavailable.")
+            MP:Print(MP:Loc("SLASH_DISPLAY_UNAVAIL"))
         end
 
     elseif cmd == "rotation" or cmd == "rot" or cmd == "kicks" then
@@ -472,14 +481,14 @@ SlashCmdList["MYTHICPULSE"] = function(input)
         if it and it.AnnounceRotation then
             it:AnnounceRotation()
         else
-            MP:Print("Interrupt tracker unavailable.")
+            MP:Print(MP:Loc("SLASH_INT_UNAVAIL"))
         end
 
     elseif cmd == "version" or cmd == "ver" then
-        MP:Print("Version: " .. MP.version)
-        
+        MP:Print(MP:Loc("SLASH_VERSION_LABEL") .. MP.version)
+
     else
-        MP:Print("Unknown command '" .. cmd .. "'. Type /mp help for a list.")
+        MP:Print(MP:Loc("SLASH_UNKNOWN_CMD", cmd))
     end
 end
 
@@ -497,7 +506,7 @@ end)
 
 MP:RegisterEvent("PLAYER_ENTERING_WORLD", function(event, isInitialLogin, isReloadingUi)
     if isInitialLogin then
-        MP:Print("v" .. MP.version .. " loaded. Type |cffffffff/mp help|r for commands.")
+        MP:Print(MP:Loc("ADDON_LOADED"))
     end
     
     -- Notify modules of world entry

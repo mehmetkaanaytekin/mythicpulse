@@ -43,14 +43,14 @@ function MP.TimerBarWidget:Create(parent, width, height)
     frame.plusThreeLabel = frame.bar.textOverlay:CreateFontString(nil, "OVERLAY")
     frame.plusThreeLabel:SetFontObject(MP.Fonts.Small)
     frame.plusThreeLabel:SetTextColor(1.0, 0.85, 0.0, 1.0)
-    frame.plusThreeLabel:SetText("+3")
+    frame.plusThreeLabel:SetText(MP:Loc("TIMER_PLUS_THREE"))
     frame.plusThreeLabel:Hide()
 
     -- +2 label inside the bar at the marker position
     frame.plusTwoLabel = frame.bar.textOverlay:CreateFontString(nil, "OVERLAY")
     frame.plusTwoLabel:SetFontObject(MP.Fonts.Small)
     frame.plusTwoLabel:SetTextColor(0.3, 1.0, 0.4, 1.0)
-    frame.plusTwoLabel:SetText("+2")
+    frame.plusTwoLabel:SetText(MP:Loc("TIMER_PLUS_TWO"))
     frame.plusTwoLabel:Hide()
 
     -- Boss split markers (up to 5) — gold, wider than bar height so they poke out

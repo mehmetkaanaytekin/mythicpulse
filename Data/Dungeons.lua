@@ -36,7 +36,7 @@ end
 ----------------------------------------------------------------------
 MP.AffixData.Affixes = {
     -- Seasonal affixes
-    { id = 160, name = "Lindormi's Guidance",  icon = "Interface\\Icons\\ability_monk_renewingmists",  minLevel = 2,  maxLevel = 4  },
+    { id = 160, name = "Lindormi's Guidance",  icon = "Interface\\Icons\\ability_monk_renewingmists",  minLevel = 2,  maxLevel = 5  },
     { id = 161, name = "Xal'atath's Bargain: Ascendant", icon = "Interface\\Icons\\spell_shadow_shadowwordpain", minLevel = 5, maxLevel = 11 },
     { id = 162, name = "Xal'atath's Bargain: Voidbound", icon = "Interface\\Icons\\spell_shadow_shadowfury",     minLevel = 5, maxLevel = 11 },
     { id = 163, name = "Xal'atath's Bargain: Pulsar",    icon = "Interface\\Icons\\spell_arcane_arcane04",       minLevel = 5, maxLevel = 11 },

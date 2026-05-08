@@ -116,27 +116,27 @@ end
 function DungeonHistory:ShowSummary()
     local stats = self:GetStats()
 
-    MP:Print("|cff00ccff=== Run History ===|r")
+    MP:Print("|cff00ccff" .. MP:Loc("HIST_HEADER") .. "|r")
 
     if stats.total == 0 then
-        MP:Print(MP.L["HISTORY_EMPTY"])
+        MP:Print(MP:Loc("HISTORY_EMPTY"))
         return
     end
 
-    MP:Print(string.format("Total Runs: |cffffffff%d|r", stats.total))
-    MP:Print(string.format("Timed: |cff4dff4d%d|r (%.0f%%)", stats.timed, stats.timedPct))
-    MP:Print(string.format("Depleted: |cffff4444%d|r", stats.depleted))
+    MP:Print(MP:Loc("HIST_TOTAL_RUNS", stats.total))
+    MP:Print(MP:Loc("HIST_TIMED_RUNS", stats.timed, stats.timedPct))
+    MP:Print(MP:Loc("HIST_DEPLETED_RUNS", stats.depleted))
 
     -- Show highest keys per dungeon
     local highest = self:GetHighestKeys()
     if next(highest) then
-        MP:Print("|cff00ccff--- Highest Timed Keys ---|r")
+        MP:Print("|cff00ccff" .. MP:Loc("HIST_HIGHEST_KEYS") .. "|r")
         for mapID, run in pairs(highest) do
             local dungeonInfo = MP.DungeonData and MP.DungeonData:GetByMapID(mapID)
             local dName = dungeonInfo and dungeonInfo.shortName
             if not dName then
                 local apiName = C_ChallengeMode.GetMapUIInfo(mapID)
-                dName = apiName or ("Map " .. tostring(mapID))
+                dName = apiName or MP:Loc("HIST_MAP_FALLBACK", mapID)
             end
             MP:Print(string.format("  %s: |cffffffff+%d|r (%s)",
                 dName, run.keyLevel, MP:FormatTime(run.elapsed)))
@@ -144,7 +144,7 @@ function DungeonHistory:ShowSummary()
     end
 
     -- Show last 5 runs
-    MP:Print("|cff00ccff--- Recent Runs ---|r")
+    MP:Print("|cff00ccff" .. MP:Loc("HIST_RECENT_RUNS") .. "|r")
     local shown = 0
     for i = 1, #MP.db.history do
         if shown >= 5 then break end
@@ -154,9 +154,9 @@ function DungeonHistory:ShowSummary()
             local dName = dungeonInfo and dungeonInfo.shortName
             if not dName then
                 local apiName = C_ChallengeMode.GetMapUIInfo(run.mapID)
-                dName = apiName or ("Map " .. run.mapID)
+                dName = apiName or MP:Loc("HIST_MAP_FALLBACK", run.mapID)
             end
-            local status = run.timed and "|cff4dff4dTimed|r" or "|cffff4444Depleted|r"
+            local status = run.timed and ("|cff4dff4d" .. MP:Loc("HIST_TIMED") .. "|r") or ("|cffff4444" .. MP:Loc("HIST_DEPLETED") .. "|r")
             MP:Print(string.format("  %s +%d — %s — %s (%s)",
                 dName, run.keyLevel, MP:FormatTime(run.elapsed),
                 status, run.date or "?"))
@@ -164,7 +164,7 @@ function DungeonHistory:ShowSummary()
         end
     end
     if shown == 0 then
-        MP:Print("|cff666666No valid runs recorded yet.|r")
+        MP:Print("|cff666666" .. MP:Loc("HIST_NO_VALID_RUNS") .. "|r")
     end
 end
 

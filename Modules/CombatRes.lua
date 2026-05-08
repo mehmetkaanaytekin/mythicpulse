@@ -273,7 +273,7 @@ local function UpdateTrinketDisplay()
     if best.ready then
         PaintIcon(trinketIcon, {
             desaturated = false,
-            state       = "Ready",
+            state       = MP:Loc("CR_READY"),
             stateColor  = { 0.3, 1, 0.3 },
         })
     else
@@ -281,7 +281,7 @@ local function UpdateTrinketDisplay()
         PaintIcon(trinketIcon, {
             desaturated = true,
             timer       = remain > 0 and MP:FormatTime(remain) or "",
-            state       = "On CD",
+            state       = MP:Loc("CR_ON_CD"),
             stateColor  = { 1, 0.35, 0.35 },
         })
     end
@@ -418,7 +418,7 @@ local function UpdateDisplay()
     if total == 0 then
         PaintIcon(brezIcon, {
             desaturated = true,
-            state = "No brez",
+            state = MP:Loc("CR_NO_BREZ"),
             stateColor = { 0.45, 0.45, 0.45 },
         })
         return
@@ -432,7 +432,7 @@ local function UpdateDisplay()
             desaturated = poolReady <= 0,
             count = string.format("%d/%d", poolReady, poolMax),
             timer = (sharedPool.nextIn and sharedPool.nextIn > 0) and MP:FormatTime(sharedPool.nextIn) or "",
-            state = string.format("Ready %d/%d", ready, total),
+            state = MP:Loc("CR_BREZ_READY_FORMAT", ready, total),
             stateColor = poolReady > 0 and { 0.3, 1, 0.3 } or { 1, 0.35, 0.35 },
         })
         return
@@ -442,7 +442,7 @@ local function UpdateDisplay()
         desaturated = ready <= 0,
         count = string.format("%d/%d", ready, total),
         timer = (nextReady and nextReady > 0) and MP:FormatTime(nextReady) or "",
-        state = ready > 0 and "Available" or "On CD",
+        state = ready > 0 and MP:Loc("CR_AVAILABLE") or MP:Loc("CR_ON_CD"),
         stateColor = ready > 0 and { 0.3, 1, 0.3 } or { 1, 0.35, 0.35 },
     })
 end
@@ -460,7 +460,7 @@ local function UpdateBLStatus()
         PaintIcon(blIcon, {
             desaturated = true,
             timer = MP:FormatTime(rem),
-            state = "Sated",
+            state = MP:Loc("CR_BL_SATED"),
             stateColor = { 1, 0.6, 0.2 },
         })
         return
@@ -483,7 +483,7 @@ local function UpdateBLStatus()
             desaturated = not isReady,
             count = string.format("%d/%d", ready, total),
             timer = (not isReady and nextCD) and MP:FormatTime(nextCD) or "",
-            state = isReady and "Ready" or "On CD",
+            state = isReady and MP:Loc("CR_READY") or MP:Loc("CR_ON_CD"),
             stateColor = isReady and { 0.3, 1, 0.3 } or { 1, 0.35, 0.35 },
         })
         return
@@ -491,7 +491,7 @@ local function UpdateBLStatus()
 
     PaintIcon(blIcon, {
         desaturated = true,
-        state = (IsInGroup() or IsInRaid()) and "No source" or "",
+        state = (IsInGroup() or IsInRaid()) and MP:Loc("CR_BL_NO_SOURCE") or "",
         stateColor = { 0.45, 0.45, 0.45 },
     })
 end

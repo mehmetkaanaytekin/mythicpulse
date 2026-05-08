@@ -147,11 +147,11 @@ end
 ----------------------------------------------------------------------
 function Demo:Start()
     if self.active then
-        MP:Print("Display preview already active. /mp display to stop.")
+        MP:Print(MP:Loc("DEMO_ALREADY_ACTIVE"))
         return
     end
     if not (MP.MainFrame and MP.MainFrame.frame) then
-        MP:Print("Demo: HUD still loading, retrying in 2s...")
+        MP:Print(MP:Loc("DEMO_LOADING"))
         C_Timer.After(2, function() self:Start() end)
         return
     end
@@ -194,7 +194,7 @@ function Demo:Start()
     end
 
     ticker:Show()
-    MP:Print("|cff4dff4dDisplay preview ON|r — drag frames to reposition. /mp display to stop.")
+    MP:Print(MP:Loc("DEMO_ON"))
 end
 
 ----------------------------------------------------------------------
@@ -242,7 +242,7 @@ function Demo:Stop()
     end
     Demo._trackerWasShown = nil
 
-    MP:Print("|cffaaaaaaDisplay preview OFF|r")
+    MP:Print(MP:Loc("DEMO_OFF"))
 end
 
 ----------------------------------------------------------------------

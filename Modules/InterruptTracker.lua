@@ -33,6 +33,10 @@ local InterruptTracker = {
 
 ----------------------------------------------------------------------
 -- Interrupt Spell Database (one per class, spec overrides)
+-- NOTE: `duration` is the interrupter's COOLDOWN (e.g. Mind Freeze 15s),
+-- NOT the target's lockout duration. Patch 12.0.5 changed lockouts
+-- (Kick 3s→6s, etc.) but those are a separate concept and do not affect
+-- this table.
 ----------------------------------------------------------------------
 local CLASS_INTERRUPTS = {
     DEATHKNIGHT = { spellID = 47528,  duration = 15, name = "Mind Freeze" },
@@ -48,6 +52,18 @@ local CLASS_INTERRUPTS = {
     SHAMAN      = { spellID = 57994,  duration = 12, name = "Wind Shear" },
     WARLOCK     = { spellID = 19647,  duration = 24, name = "Spell Lock", pet = true },
     WARRIOR     = { spellID = 6552,   duration = 15, name = "Pummel" },
+}
+
+-- Patch 12.0.5: healers (except Resto Shaman) lost interrupts in PvE.
+-- Resto Druid kept Skull Bash but only via shapeshift, excluded for rotation tracking.
+local HEALER_SPECS_NO_INTERRUPT = {
+    [256]  = true,  -- Discipline Priest
+    [257]  = true,  -- Holy Priest
+    [65]   = true,  -- Holy Paladin
+    [270]  = true,  -- Mistweaver Monk
+    [1468] = true,  -- Preservation Evoker
+    [105]  = true,  -- Restoration Druid
+    -- Restoration Shaman [264] intentionally absent — Wind Shear retained.
 }
 
 -- Spec-specific overrides (specID -> interrupt data)
@@ -107,9 +123,8 @@ local TALENT_CD_MODS = {
 -- Get interrupt data for a class/spec
 ----------------------------------------------------------------------
 local function GetInterruptForUnit(class, specID)
-    if specID and SPEC_OVERRIDES[specID] then
-        return SPEC_OVERRIDES[specID]
-    end
+    if specID and HEALER_SPECS_NO_INTERRUPT[specID] then return nil end
+    if specID and SPEC_OVERRIDES[specID] then return SPEC_OVERRIDES[specID] end
     return CLASS_INTERRUPTS[class]
 end
 
@@ -346,12 +361,12 @@ local function CreateRow(parent, index)
         end
         local remaining = (m.cdEnd or 0) - GetTime()
         if remaining > 0 then
-            GameTooltip:AddLine(string.format("On cooldown: %.0fs", remaining), 0.9, 0.5, 0.5)
+            GameTooltip:AddLine(MP:Loc("INT_TOOLTIP_ON_CD", remaining), 0.9, 0.5, 0.5)
         else
-            GameTooltip:AddLine("READY", 0.3, 1.0, 0.4)
+            GameTooltip:AddLine(MP:Loc("INT_READY"), 0.3, 1.0, 0.4)
         end
         GameTooltip:AddLine(" ")
-        GameTooltip:AddLine("Left-click to announce status", 0.6, 0.6, 0.6)
+        GameTooltip:AddLine(MP:Loc("INT_TOOLTIP_CLICK"), 0.6, 0.6, 0.6)
         GameTooltip:Show()
     end)
     row:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -365,9 +380,11 @@ local function CreateRow(parent, index)
         local remaining = m.cdEnd - GetTime()
         local msg
         if remaining > 0 then
-            msg = string.format("[MythicPulse] %s's %s on CD (%.0fs)", m.name, m.spellName, remaining)
+            -- INTENTIONAL: localized broadcast
+            msg = MP:Loc("INT_CD_ANNOUNCE", m.name, m.spellName, remaining)
         else
-            msg = string.format("[MythicPulse] %s's %s is READY", m.name, m.spellName)
+            -- INTENTIONAL: localized broadcast
+            msg = MP:Loc("INT_READY_ANNOUNCE", m.name, m.spellName)
         end
         SendChatMessage(msg, channel)
     end)
@@ -507,7 +524,7 @@ local function UpdateRows()
                 row.icon:SetAlpha(0.5)
             else
                 row.bar:SetProgress(1)
-                row.bar.rightText:SetText("READY")
+                row.bar.rightText:SetText(MP:Loc("INT_READY"))
                 row.bar.rightText:SetTextColor(0.40, 1.00, 0.50)
                 row.icon:SetDesaturated(false)
                 row.icon:SetAlpha(1.0)
@@ -726,7 +743,7 @@ end
 function InterruptTracker:AnnounceRotation()
     local members = self.members or {}
     if #members == 0 then
-        MP:Print("No interrupters in group.")
+        MP:Print(MP:Loc("INT_NO_INTERRUPTERS"))
         return
     end
 
@@ -743,12 +760,12 @@ function InterruptTracker:AnnounceRotation()
     local channel = IsInGroup(LE_PARTY_CATEGORY_INSTANCE) and "INSTANCE_CHAT"
                  or IsInGroup() and "PARTY"
     if not channel then
-        MP:Print("|cffffd866Kick rotation:|r")
+        MP:Print("|cffffd866" .. MP:Loc("INT_ROTATION_HEADER") .. "|r")
         for i, e in ipairs(order) do
             local rem = (e.m.cdEnd or 0) - now
-            local status = rem > 0 and string.format("(%.0fs)", rem) or "READY"
+            local status = rem > 0 and string.format("(%.0fs)", rem) or MP:Loc("INT_READY")
             MP:Print(string.format("  %d. %s — %s %s", i, e.m.name or "?",
-                e.m.spellName or "Interrupt", status))
+                e.m.spellName or MP:Loc("INT_FALLBACK_NAME"), status))
         end
         return
     end
@@ -762,7 +779,8 @@ function InterruptTracker:AnnounceRotation()
         if i == 1 then label = "▶" .. label end
         table.insert(parts, label)
     end
-    SendChatMessage("[MythicPulse] Kicks: " .. table.concat(parts, " → "), channel)
+    -- INTENTIONAL: localized broadcast
+    SendChatMessage(MP:Loc("INT_ROTATION_ANNOUNCE", table.concat(parts, " \226\134\146 ")), channel)
 end
 
 ----------------------------------------------------------------------

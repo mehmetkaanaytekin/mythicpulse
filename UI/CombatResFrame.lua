@@ -31,7 +31,7 @@ local function CreateCombatResFrame()
     f.header:SetFontObject(MP.Fonts and MP.Fonts.Label or "GameFontHighlight")
     f.header:SetPoint("TOPLEFT", f, "TOPLEFT", FRAME_PADDING, -2)
     f.header:SetTextColor(0.85, 0.85, 0.85)
-    f.header:SetText("Combat")
+    f.header:SetText(MP:Loc("COMBATRES_HDR"))
 
     f:RegisterForDrag("LeftButton")
     f:SetScript("OnDragStart", function(self)

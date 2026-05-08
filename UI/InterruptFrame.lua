@@ -36,7 +36,7 @@ local function CreateInterruptFrame()
     f.header:SetFontObject(MP.Fonts and MP.Fonts.Label or "GameFontHighlight")
     f.header:SetPoint("TOPLEFT", f, "TOPLEFT", FRAME_PADDING, -2)
     f.header:SetTextColor(0.85, 0.85, 0.85)
-    f.header:SetText("Interrupts")
+    f.header:SetText(MP:Loc("INTERRUPTS"))
 
     f:RegisterForDrag("LeftButton")
     f:SetScript("OnDragStart", function(self)

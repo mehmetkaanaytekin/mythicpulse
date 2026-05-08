@@ -1,0 +1,10 @@
+# Ruflo/Claude Code local state
+ruvector.db
+.claude/
+
+# OS noise
+Thumbs.db
+.DS_Store
+
+# Packager output
+*.zip

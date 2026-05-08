@@ -37,7 +37,7 @@ local function CreateMainFrame()
     f.addonHeader:SetFontObject(MP.Fonts.Label)
     f.addonHeader:SetPoint("TOPLEFT", FRAME_PADDING, -FRAME_PADDING)
     f.addonHeader:SetTextColor(MP.COLORS.textSecondary.r, MP.COLORS.textSecondary.g, MP.COLORS.textSecondary.b)
-    f.addonHeader:SetText("MythicPulse Timer")
+    f.addonHeader:SetText(MP:Loc("MAIN_ADDON_HEADER"))
 
     -- Title bar (dungeon name + key level), shifted below the addon header
     f.titleBar = CreateFrame("Frame", nil, f)
@@ -49,7 +49,7 @@ local function CreateMainFrame()
     f.titleText:SetFontObject(MP.Fonts.Header)
     f.titleText:SetPoint("LEFT")
     f.titleText:SetTextColor(MP.COLORS.brand.r, MP.COLORS.brand.g, MP.COLORS.brand.b)
-    f.titleText:SetText("MythicPulse")
+    f.titleText:SetText(MP:Loc("MAIN_ADDON_HEADER"))
 
     -- Key level display (immediately right of dungeon name)
     f.keyLevelText = f.titleBar:CreateFontString(nil, "OVERLAY")

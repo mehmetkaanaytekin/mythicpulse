@@ -562,7 +562,7 @@ end
 function DungeonUtility:Toggle()
     if not MP.UtilityFrame then return end
     if not MP:IsModuleEnabled("dungeonUtility") then
-        MP:Print("Dungeon Utility is disabled. Enable it in /mp config → Modules.")
+        MP:Print(MP:Loc("UTIL_DISABLED_MSG"))
         return
     end
 
