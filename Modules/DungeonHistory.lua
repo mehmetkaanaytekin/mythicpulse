@@ -19,6 +19,9 @@ function DungeonHistory:RecordRun(runData)
     if not runData.keyLevel or runData.keyLevel <= 0 then return end
     if not runData.elapsed or runData.elapsed <= 0 then return end
 
+    -- Unix timestamp so GetWeeklyBest can filter by rolling 7-day window.
+    if not runData.timestamp then runData.timestamp = time() end
+
     table.insert(MP.db.history, 1, runData)  -- newest first
 
     -- Trim to max entries
@@ -41,6 +44,27 @@ function DungeonHistory:GetPersonalBest(mapID, keyLevel)
     local best = nil
     for _, run in ipairs(MP.db.history) do
         if run.mapID == mapID and run.keyLevel == keyLevel and run.timed then
+            if not best or run.elapsed < best.elapsed then
+                best = run
+            end
+        end
+    end
+    return best
+end
+
+----------------------------------------------------------------------
+-- Get weekly best for a dungeon at a given key level (rolling 7-day window).
+-- Returns nil when no run with a stored timestamp exists in the window.
+----------------------------------------------------------------------
+function DungeonHistory:GetWeeklyBest(mapID, keyLevel)
+    if not MP:IsModuleEnabled("dungeonHistory") then return nil end
+    if not MP.db or not MP.db.history then return nil end
+
+    local cutoff = time() - 7 * 24 * 3600
+    local best = nil
+    for _, run in ipairs(MP.db.history) do
+        if run.mapID == mapID and run.keyLevel == keyLevel
+        and run.timed and run.timestamp and run.timestamp >= cutoff then
             if not best or run.elapsed < best.elapsed then
                 best = run
             end

@@ -176,6 +176,12 @@ local function GetSpecID(unit)
 end
 
 function InterruptTracker:ScanGroup()
+    -- Preserve per-member kick counts across rescans (e.g. GROUP_ROSTER_UPDATE mid-run).
+    local savedKicks = {}
+    for _, m in ipairs(self.members) do
+        if m.guid then savedKicks[m.guid] = m.kicks or 0 end
+    end
+
     self.members = {}
     local numMembers = GetNumGroupMembers()
     if numMembers == 0 then
@@ -197,7 +203,8 @@ function InterruptTracker:ScanGroup()
                 spellName = intData.name,
                 pet      = intData.pet,
                 cdEnd    = 0,
-                kickResult = nil,  -- nil=none, "success", "fail", "pending"
+                kicks    = savedKicks[guid] or 0,
+                kickResult = nil,
             })
         end
         return
@@ -234,6 +241,7 @@ function InterruptTracker:ScanGroup()
                     spellName = intData.name,
                     pet       = intData.pet,
                     cdEnd     = 0,
+                    kicks     = savedKicks[guid] or 0,
                     kickResult = nil,
                 })
             end
@@ -268,7 +276,8 @@ function InterruptTracker:OnInterruptCast(guid, name, spellID)
     local m = (guid and FindMember(guid)) or FindMemberByName(name)
     if not m then return end
 
-    m.cdEnd = GetTime() + m.duration
+    m.cdEnd  = GetTime() + m.duration
+    m.kicks  = (m.kicks or 0) + 1
     m.kickResult = "pending"
     m.kickResultTime = GetTime()
     self.pending[m.guid] = { spellID = spellID, time = GetTime() }
@@ -657,7 +666,9 @@ function InterruptTracker:OnEvent(event, ...)
         end)
 
     elseif event == "CHALLENGE_MODE_START" then
-        -- Re-activate after a reset so back-to-back keys work correctly.
+        -- New run: reset per-member kick counts then rescan.
+        self.lastRunStats = nil
+        for _, m in ipairs(self.members) do m.kicks = 0 end
         self.active = true
         if section then section:Show() end
         if ticker then ticker:Show() end
@@ -667,12 +678,39 @@ function InterruptTracker:OnEvent(event, ...)
         end)
 
     elseif event == "CHALLENGE_MODE_RESET" or event == "CHALLENGE_MODE_COMPLETED" then
+        -- Snapshot kick stats before clearing so RunSummary can read them.
+        if event == "CHALLENGE_MODE_COMPLETED" then
+            self.lastRunStats = self:GetRunStats()
+        else
+            self.lastRunStats = nil
+        end
         self.members = {}
         self.pending = {}
         if section then section:Hide() end
         if ticker then ticker:Hide() end
         self.active = false
     end
+end
+
+----------------------------------------------------------------------
+-- Public: interrupt stats for RunSummary
+----------------------------------------------------------------------
+
+--- Returns a sorted snapshot of per-player interrupt counts for the current run.
+--- Falls back to lastRunStats if members have already been cleared.
+function InterruptTracker:GetRunStats()
+    local src = (self.members and #self.members > 0) and self.members or nil
+    if not src then return self.lastRunStats or {} end
+    local stats = {}
+    for _, m in ipairs(src) do
+        table.insert(stats, {
+            name  = m.name,
+            class = m.class,
+            kicks = m.kicks or 0,
+        })
+    end
+    table.sort(stats, function(a, b) return a.kicks > b.kicks end)
+    return stats
 end
 
 ----------------------------------------------------------------------

@@ -47,39 +47,47 @@ local function ScanEquippedTrinkets()
     for _, slot in ipairs(TRINKET_SLOTS) do
         local itemID = GetInventoryItemID and GetInventoryItemID("player", slot)
         if itemID then
-            -- Resolve the on-use spell (may be nil for stat-only trinkets)
+            -- Resolve the on-use spell (nil for stat-only / passive trinkets)
             local spellName, spellID
             if C_Item.GetItemSpell then
                 spellName, spellID = C_Item.GetItemSpell(itemID)
             end
             if spellID and type(spellID) == "number" then
-                -- Read cooldown from the spell book if possible
+                -- GetSpellBaseCooldown returns the inherent CD in milliseconds
+                -- regardless of whether the spell is currently on cooldown.
+                -- C_Spell.GetSpellCooldown().duration is 0 when off-CD, so it
+                -- cannot be used to discover the trinket's base duration at scan time.
                 local duration = 0
-                if C_Spell and C_Spell.GetSpellCooldown then
+                if GetSpellBaseCooldown then
+                    local ok, baseCd = pcall(GetSpellBaseCooldown, spellID)
+                    if ok and type(baseCd) == "number" and baseCd > 0 then
+                        duration = baseCd / 1000  -- ms → seconds
+                    end
+                end
+                -- Fallback: current cooldown (non-zero only if spell is on CD right now)
+                if duration == 0 and C_Spell and C_Spell.GetSpellCooldown then
                     local info = C_Spell.GetSpellCooldown(spellID)
-                    -- Blizzard's Midnight "secret number" taint can make
-                    -- tonumber() return nil AND make direct comparisons error.
-                    -- Use pcall to safely extract a usable number.
                     if info then
                         local ok, val = pcall(function()
                             local d = tonumber(info.duration)
-                            if d and d > 0 then return d end
+                            if d and d > 1.5 then return d end  -- skip GCD (1.5 s)
                             return 0
                         end)
                         duration = (ok and val) or 0
                     end
                 end
-                -- Skip 0-CD entries (passive procs masquerading as spells)
-                if duration > 0 then
-                    local itemName = C_Item.GetItemNameByID and C_Item.GetItemNameByID(itemID)
-                    found[spellID] = {
-                        itemID   = itemID,
-                        slot     = slot,
-                        name     = spellName or itemName or "Trinket",
-                        duration = duration,
-                        cdEnd    = 0,
-                    }
-                end
+                -- C_Item.GetItemSpell only returns a spell for on-use trinkets,
+                -- so we always register the entry. If duration is still 0 here
+                -- (API gaps or purely passive edge-cases) it will be captured
+                -- correctly the first time the trinket is activated.
+                local itemName = C_Item.GetItemNameByID and C_Item.GetItemNameByID(itemID)
+                found[spellID] = {
+                    itemID   = itemID,
+                    slot     = slot,
+                    name     = spellName or itemName or "Trinket",
+                    duration = duration,
+                    cdEnd    = 0,
+                }
             end
         end
     end
@@ -95,16 +103,19 @@ local function StartCooldown(spellID)
     local data = TrinketTracker.trinkets[spellID]
     if not data then return end
 
-    -- Re-query duration if it was zero at scan time (transient during equip)
-    if (data.duration or 0) == 0 then
-        if C_Spell and C_Spell.GetSpellCooldown then
-            local info = C_Spell.GetSpellCooldown(spellID)
-            if info then
-                local ok, val = pcall(function()
-                    local d = tonumber(info.duration)
-                    return (d and d > 0) and d or 0
-                end)
-                data.duration = (ok and val) or 0
+    -- At cast time GetSpellCooldown.duration is the authoritative CD value.
+    -- Always refresh here so we catch haste/CDR effects that differ from base.
+    if C_Spell and C_Spell.GetSpellCooldown then
+        local info = C_Spell.GetSpellCooldown(spellID)
+        if info then
+            local ok, val = pcall(function()
+                local d = tonumber(info.duration)
+                if d and d > 1.5 then return d end  -- skip GCD
+                return 0
+            end)
+            local captured = (ok and val) or 0
+            if captured > 0 then
+                data.duration = captured
             end
         end
     end

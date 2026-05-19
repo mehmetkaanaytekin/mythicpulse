@@ -131,11 +131,41 @@ local TRACKED_SPELLS = {
     [97462]  = { class = "WARRIOR", duration = 180, category = "raidcd",   name = "Rallying Cry" },
     [23920]  = { class = "WARRIOR", spec = 73, duration = 25,  category = "utility",   name = "Spell Reflection" },
     [118038] = { class = "WARRIOR", spec = 71, duration = 180, category = "defensive", name = "Die by the Sword" },
+
+    -- ============== Bloodlust / Heroism ==============
+    -- Also tracked by CombatRes for its dedicated HUD frame; these entries
+    -- make the cast visible in the per-player icon row as well.
+    [2825]   = { class = "SHAMAN", duration = 600, category = "raidcd", name = "Bloodlust" },
+    [32182]  = { class = "SHAMAN", duration = 600, category = "raidcd", name = "Heroism" },
+    [80353]  = { class = "MAGE",   duration = 600, category = "raidcd", name = "Time Warp" },
+    [390386] = { class = "EVOKER", duration = 600, category = "raidcd", name = "Fury of the Aspects" },
+    [264667] = { class = "HUNTER", spec = 253, duration = 600, category = "raidcd", name = "Primal Rage" },
+    [90355]  = { class = "HUNTER", spec = 253, duration = 600, category = "raidcd", name = "Ancient Hysteria" },
 }
 
 for k in pairs(TRACKED_SPELLS) do
     if type(k) ~= "number" then TRACKED_SPELLS[k] = nil end
 end
+
+-- Debuffs that indicate Bloodlust-equivalent was recently used.
+-- Any of these on any party member means lust icons should appear on cooldown.
+local SATED_IDS = {
+    [57724]  = true,   -- Sated
+    [57723]  = true,   -- Exhaustion
+    [80354]  = true,   -- Temporal Displacement
+    [160455] = true,   -- Fatigued
+    [390435] = true,   -- Enervation (Fury of the Aspects)
+}
+
+-- Quick-lookup set of all lust spell IDs tracked above.
+local LUST_SPELL_IDS = {
+    [2825]   = true,
+    [32182]  = true,
+    [80353]  = true,
+    [390386] = true,
+    [264667] = true,
+    [90355]  = true,
+}
 
 ----------------------------------------------------------------------
 -- Talent-based Cooldown Modifications
@@ -582,6 +612,36 @@ local function UpdateAurasForUnit(unit)
                     active = (ok2 and harmful ~= nil)
                 end
                 if active and icon.SetActive then icon:SetActive(true) end
+            end
+        end
+    end
+
+    -- If this unit has a Sated-type debuff, force all lust icons in every row
+    -- into cooldown for the debuff's remaining duration.  This catches cases
+    -- where the caster isn't running MythicPulse (no Comm message) so the
+    -- UNIT_SPELLCAST_SUCCEEDED path never fired for us.
+    if C_UnitAuras and C_UnitAuras.GetAuraDataBySpellID then
+        local now         = GetTime()
+        local satedExpiry = 0
+        for satedID in pairs(SATED_IDS) do
+            local ok, aura = pcall(C_UnitAuras.GetAuraDataBySpellID, unit, satedID, "HARMFUL")
+            if ok and aura then
+                local expOk, exp = pcall(function() return aura.expirationTime end)
+                exp = (expOk and type(exp) == "number" and exp > 0) and exp or (now + 600)
+                if exp > satedExpiry then satedExpiry = exp end
+            end
+        end
+        if satedExpiry > now then
+            local remaining = satedExpiry - now
+            for _, r in ipairs(rows) do
+                for _, icon in ipairs(r.icons) do
+                    if icon.spellID and LUST_SPELL_IDS[icon.spellID] then
+                        -- Only update if the icon has no cooldown or less time than debuff has left
+                        if not icon:IsOnCooldown() or (icon.endTime and icon.endTime < satedExpiry) then
+                            icon:StartCooldown(remaining)
+                        end
+                    end
+                end
             end
         end
     end

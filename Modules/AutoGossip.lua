@@ -31,9 +31,67 @@ local AutoGossip = {
 -- Format: ["NPC Name"] = { option = N | "first", note = "..." }
 -- option = "first" → select the first gossip option offered (safe default)
 --
--- TODO: populate with Midnight M+ dungeon NPCs once the pool is known.
+-- HOW TO DISCOVER NEW NPCs: Run the dungeon in NORMAL (non-M+) mode with
+-- DEBUG_GOSSIP_NAMES = true below.  The addon will print each gossip NPC
+-- name to chat so you can add it here.  Names found in normal mode are
+-- identical in M+ — they just become tainted secret strings there.
 ----------------------------------------------------------------------
-local AUTO_GOSSIP = {}
+
+-- Set true to print gossip NPC names to chat (only works outside M+).
+local DEBUG_GOSSIP_NAMES = false
+
+local AUTO_GOSSIP = {
+    -- -----------------------------------------------------------------------
+    -- Pit of Saron (556) — WotLK remixed
+    -- Escort leader at dungeon entrance; gossip to begin the assault.
+    -- One NPC appears depending on server/phase: add both to be safe.
+    -- -----------------------------------------------------------------------
+    ["Lady Sylvanas Windrunner"] = { option = "first", note = "PoS: begin assault (Horde)" },
+    ["Jaina Proudmoore"]         = { option = "first", note = "PoS: begin assault (Alliance)" },
+
+    -- -----------------------------------------------------------------------
+    -- Seat of the Triumvirate (239) — Legion
+    -- Alleria Windrunner accompanies the party and has a dialog prompt
+    -- before the void-corruption sequence near the third boss.
+    -- -----------------------------------------------------------------------
+    ["Alleria Windrunner"] = { option = "first", note = "SotT: void introduction" },
+
+    -- -----------------------------------------------------------------------
+    -- Algeth'ar Academy (402) — Dragonflight
+    -- Verify the exact NPC name in normal mode with DEBUG_GOSSIP_NAMES = true.
+    -- -----------------------------------------------------------------------
+    -- ["<NPC Name>"] = { option = "first", note = "AA: <description>" },
+
+    -- -----------------------------------------------------------------------
+    -- Skyreach (161) — WoD
+    -- Verify the exact NPC name in normal mode with DEBUG_GOSSIP_NAMES = true.
+    -- -----------------------------------------------------------------------
+    -- ["<NPC Name>"] = { option = "first", note = "SR: <description>" },
+
+    -- -----------------------------------------------------------------------
+    -- Windrunner Spire (557) — Midnight
+    -- Verify the exact NPC name in normal mode with DEBUG_GOSSIP_NAMES = true.
+    -- -----------------------------------------------------------------------
+    -- ["<NPC Name>"] = { option = "first", note = "WS: <description>" },
+
+    -- -----------------------------------------------------------------------
+    -- Magisters' Terrace (558) — Midnight
+    -- Verify the exact NPC name in normal mode with DEBUG_GOSSIP_NAMES = true.
+    -- -----------------------------------------------------------------------
+    -- ["<NPC Name>"] = { option = "first", note = "MT: <description>" },
+
+    -- -----------------------------------------------------------------------
+    -- Nexus-Point Xenas (559) — Midnight
+    -- Verify the exact NPC name in normal mode with DEBUG_GOSSIP_NAMES = true.
+    -- -----------------------------------------------------------------------
+    -- ["<NPC Name>"] = { option = "first", note = "NPX: <description>" },
+
+    -- -----------------------------------------------------------------------
+    -- Maisara Caverns (560) — Midnight
+    -- Verify the exact NPC name in normal mode with DEBUG_GOSSIP_NAMES = true.
+    -- -----------------------------------------------------------------------
+    -- ["<NPC Name>"] = { option = "first", note = "MC: <description>" },
+}
 
 ----------------------------------------------------------------------
 -- Check if AutoGossip should run right now.
@@ -64,6 +122,14 @@ function AutoGossip:OnEvent(event)
     -- "secret string value" even against a literal. Use SafeStringEquals (pcall).
     local npcName = UnitName("npc")
     if not npcName then return end
+
+    -- Debug helper: outside M+ the name is a normal string, safe to print.
+    if DEBUG_GOSSIP_NAMES and not MP:IsInMythicPlus() then
+        local ok, safeName = pcall(tostring, npcName)
+        if ok and safeName then
+            MP:Print("|cffff9f00AutoGossip debug:|r GOSSIP_SHOW from NPC: '" .. safeName .. "'")
+        end
+    end
 
     local rule
     for knownName, entry in pairs(AUTO_GOSSIP) do

@@ -59,16 +59,18 @@ local Y_FORCES  = -128   -- forces bar (timer 70 + gap 4)
 -- forces height = 24
 local Y_PB      = -156   -- personal best (forces 24 + gap 4)
 -- pb height = 16
-local Y_SPLITS  = -180   -- boss splits (pb 16 + gap 8)
+local Y_SCORE   = -176   -- live score estimate (pb 16 + gap 4)
+-- score height = 16
+local Y_SPLITS  = -196   -- boss splits (score 16 + gap 4)
 
-local SECTION_BASE_H = 180
+local SECTION_BASE_H = 196
 local SPLIT_ROW_H    = 18
 
 ----------------------------------------------------------------------
 -- UI elements (module-scoped locals for easy access)
 ----------------------------------------------------------------------
 local timerBar, splitFrame, splitTexts
-local deathRow, affixRow, pbText
+local deathRow, affixRow, pbText, scoreText
 
 ----------------------------------------------------------------------
 -- Section creation
@@ -114,6 +116,15 @@ local function CreateUI()
     pbText:SetJustifyH("LEFT")
     pbText:SetTextColor(MP.COLORS.textMuted.r, MP.COLORS.textMuted.g, MP.COLORS.textMuted.b)
 
+    -- Live score estimate line
+    scoreText = section:CreateFontString(nil, "OVERLAY")
+    scoreText:SetFontObject(MP.Fonts.Small)
+    scoreText:SetPoint("TOPLEFT",  section, "TOPLEFT",  0, Y_SCORE)
+    scoreText:SetPoint("TOPRIGHT", section, "TOPRIGHT", 0, Y_SCORE)
+    scoreText:SetJustifyH("LEFT")
+    scoreText:SetText("")
+    Timer.scoreText = scoreText
+
     -- Boss splits container
     splitFrame = CreateFrame("Frame", nil, section)
     splitFrame:SetHeight(1)
@@ -143,9 +154,19 @@ local function RefreshPBDisplay()
         pbText:SetText("")
         return
     end
-    local best = history:GetPersonalBest(Timer.mapID, Timer.keyLevel)
+    local best   = history:GetPersonalBest(Timer.mapID, Timer.keyLevel)
+    local weekly = history.GetWeeklyBest and history:GetWeeklyBest(Timer.mapID, Timer.keyLevel)
+
     if best and best.elapsed and best.elapsed > 0 then
-        pbText:SetText(MP:Loc("TIMER_PB_FORMAT", MP:FormatTime(best.elapsed), Timer.keyLevel))
+        local pbLine = MP:Loc("TIMER_PB_FORMAT", MP:FormatTime(best.elapsed), Timer.keyLevel)
+        -- Append weekly best when it differs from all-time PB (or when only weekly exists)
+        if weekly and weekly.elapsed and weekly.elapsed > 0
+        and (not best or weekly.elapsed ~= best.elapsed) then
+            pbLine = pbLine .. "  |cffaaaaaa" .. MP:Loc("TIMER_WK_PB_FORMAT", MP:FormatTime(weekly.elapsed)) .. "|r"
+        end
+        pbText:SetText(pbLine)
+    elseif weekly and weekly.elapsed and weekly.elapsed > 0 then
+        pbText:SetText("|cffaaaaaa" .. MP:Loc("TIMER_WK_PB_FORMAT", MP:FormatTime(weekly.elapsed)) .. "|r")
     else
         pbText:SetText(MP:Loc("TIMER_NO_PB"))
     end
@@ -222,10 +243,58 @@ local function UpdateDeathRow()
     end
 end
 
+----------------------------------------------------------------------
+-- Live score estimate
+----------------------------------------------------------------------
+local _lastScoreElapsed = -1
+
+local function UpdateScoreText()
+    if not scoreText or not Timer.active then return end
+    local elapsed = Timer.elapsed
+    -- Update at most once per second
+    if math.floor(elapsed) == math.floor(_lastScoreElapsed) then return end
+    _lastScoreElapsed = elapsed
+
+    local sp = MP.ScorePredictor
+    if not sp or not Timer.keyLevel or Timer.keyLevel <= 0 then
+        scoreText:SetText("")
+        return
+    end
+
+    local timed    = elapsed <= (Timer.timeLimit or 0) and Timer.timeLimit > 0
+    local tier     = sp:GetChestTier(elapsed, Timer.timeLimit)
+    local score    = sp:EstimateRunScore(Timer.keyLevel, timed, tier)
+    local existing = sp:GetExistingBestForMap(Timer.mapID)
+
+    local paceStr
+    if timed then
+        -- Show tier label and score
+        local tierLabel = (tier == 3 and "|cffffd700+3|r") or (tier == 2 and "|cffaaaaaa+2|r") or "|cffff9f00+1|r"
+        paceStr = string.format("%s  ~|cffffff80%d pts|r", tierLabel, score)
+    else
+        -- Over-time: show as depleted
+        paceStr = string.format("|cffff4040%s|r  ~|cffffff80%d pts|r",
+            MP:Loc("RS_DEPLETED"), score)
+    end
+
+    if existing and existing > 0 then
+        local delta = score - existing
+        if delta > 0 then
+            paceStr = paceStr .. string.format("  |cff4dff4d(+%d)|r", delta)
+        elseif delta < 0 then
+            paceStr = paceStr .. string.format("  |cffff5555(%d)|r", delta)
+        end
+    end
+
+    scoreText:SetText(paceStr)
+end
+
 local function ClearLiveText()
-    _lastDeathCount = -1
-    if deathRow  then deathRow:SetText("") end
-    if affixRow  then affixRow:SetText("") end
+    _lastDeathCount   = -1
+    _lastScoreElapsed = -1
+    if deathRow   then deathRow:SetText("") end
+    if affixRow   then affixRow:SetText("") end
+    if scoreText  then scoreText:SetText("") end
 end
 
 ----------------------------------------------------------------------
@@ -257,6 +326,7 @@ tickFrame:SetScript("OnUpdate", function(self, dt)
         timerBar:UpdateTimer(Timer.elapsed, Timer.timeLimit)
     end
     UpdateDeathRow()
+    UpdateScoreText()
 end)
 
 ----------------------------------------------------------------------
@@ -359,20 +429,27 @@ local function EndRun(completed)
     local deathMod = MP:GetModule("DeathTracker")
     local deaths   = deathMod and deathMod.count or 0
     local deathPenalty = MP.DungeonData and MP.DungeonData:GetDeathPenalty(Timer.keyLevel) or 5
+
+    -- Snapshot interrupt stats before InterruptTracker may clear its members table
+    -- (both Timer and InterruptTracker listen to CHALLENGE_MODE_COMPLETED; order varies).
+    local it = MP:GetModule("InterruptTracker")
+    local interruptStats = it and it:GetRunStats() or {}
+
     local runData  = {
-        mapID        = Timer.mapID,
-        keyLevel     = Timer.keyLevel,
-        elapsed      = Timer.elapsed,
-        timeLimit    = Timer.timeLimit,
-        deaths       = deaths,
-        timed        = completed and (Timer.elapsed <= Timer.timeLimit),
-        completed    = completed or false,
-        date         = date("%Y-%m-%d %H:%M"),
-        bossSplits   = Timer.bossSplits,
-        affixes      = Timer.affixes,
-        dungeonName  = (MP.DungeonData and MP.DungeonData:GetByMapID(Timer.mapID) or {}).shortName,
-        deathPenalty = deathPenalty,
-        totalPenalty = deaths * deathPenalty,
+        mapID          = Timer.mapID,
+        keyLevel       = Timer.keyLevel,
+        elapsed        = Timer.elapsed,
+        timeLimit      = Timer.timeLimit,
+        deaths         = deaths,
+        timed          = completed and (Timer.elapsed <= Timer.timeLimit),
+        completed      = completed or false,
+        date           = date("%Y-%m-%d %H:%M"),
+        bossSplits     = Timer.bossSplits,
+        affixes        = Timer.affixes,
+        dungeonName    = (MP.DungeonData and MP.DungeonData:GetByMapID(Timer.mapID) or {}).shortName,
+        deathPenalty   = deathPenalty,
+        totalPenalty   = deaths * deathPenalty,
+        interruptStats = interruptStats,
     }
     Timer.affixes = nil
 
@@ -383,6 +460,14 @@ local function EndRun(completed)
 
     RefreshPBDisplay()
     RestoreBlizzardTracker()
+
+    -- Show the run summary panel when a key completes (not on reset/abandon).
+    if completed and MP.RunSummary then
+        C_Timer.After(1.5, function()
+            if MP.IsModuleEnabled and not MP:IsModuleEnabled("runSummary") then return end
+            MP.RunSummary:Show(runData)
+        end)
+    end
 end
 
 ----------------------------------------------------------------------

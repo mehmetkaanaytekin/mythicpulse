@@ -161,11 +161,25 @@ end
 -- Public API consumed by PartyCooldowns for dispel indicators
 ----------------------------------------------------------------------
 
---- Returns which dispel type keys the local player's class can cover.
+--- Returns which dispel type keys the local player can actually cover,
+--- filtered by the spells they currently have (spec-aware via IsPlayerSpell).
+--- GetTypesForClass() merges all specs — a Balance Druid would incorrectly
+--- appear to have magic dispel if we used it directly.
 function DispelTracker:GetLocalPlayerDispelTypes()
     local _, localClass = UnitClass("player")
     if not localClass then return {} end
-    return GetTypesForClass(localClass)
+    local types = {}
+    for _, d in ipairs(DISPELS) do
+        if d.class == localClass then
+            local hasSpell = (not IsPlayerSpell) or IsPlayerSpell(d.spellID)
+            if hasSpell then
+                for k, v in pairs(d.types) do
+                    if v then types[k] = true end
+                end
+            end
+        end
+    end
+    return types
 end
 
 --- Returns the first dispellable-by-me debuff type on `unit`, or nil.

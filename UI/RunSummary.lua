@@ -328,7 +328,14 @@ local function BuildPanel()
     f.splitsCard = splitsCard
     splitsCard.rows = {}
 
-    -- ── Card 4: SCORE | RATING SUMMARY ────────────────────────────────
+    -- ── Card 4: INTERRUPTS ─────────────────────────────────────────────
+    local interruptCard = MakeCard(f, MP:Loc("RS_CARD_INTERRUPTS"))
+    interruptCard:SetPoint("TOPLEFT",  f, "TOPLEFT",  PADDING,  0)
+    interruptCard:SetPoint("TOPRIGHT", f, "TOPRIGHT", -PADDING, 0)
+    f.interruptCard = interruptCard
+    interruptCard.rows = {}
+
+    -- ── Card 5: SCORE | RATING SUMMARY ────────────────────────────────
     local scoreCard = MakeCard(f, MP:Loc("RS_CARD_SCORE"))
     scoreCard:SetPoint("TOPLEFT",  f, "TOPLEFT",  PADDING,  0)
     scoreCard:SetPoint("TOPRIGHT", f, "TOPRIGHT", -PADDING, 0)
@@ -423,7 +430,7 @@ local function LayoutPanel(f)
     local chromeH = PADDING + 20 + 8 + 1 + 8
     local y = chromeH + HERO_H + CARD_GAP
 
-    local cards = { f.timeCard, f.deathCard, f.splitsCard, f.scoreCard }
+    local cards = { f.timeCard, f.deathCard, f.splitsCard, f.interruptCard, f.scoreCard }
     for _, card in ipairs(cards) do
         if card:IsShown() then
             card:ClearAllPoints()
@@ -623,9 +630,23 @@ local function PopulateTimeCard(f, runData)
 
     local history = MP:GetModule("DungeonHistory")
     if history and history.GetPersonalBest then
-        local best = history:GetPersonalBest(runData.mapID, runData.keyLevel)
-        if best and best.elapsed and best.elapsed > 0 then
-            local dpb = best.elapsed - elapsed
+        -- Prefer weekly best (more actionable); fall back to all-time PB
+        local ref = nil
+        local refLabel = MP:Loc("RS_COL_VS_PB")
+        if history.GetWeeklyBest then
+            local weekly = history:GetWeeklyBest(runData.mapID, runData.keyLevel)
+            if weekly and weekly.elapsed and weekly.elapsed > 0 then
+                ref = weekly
+                refLabel = MP:Loc("RS_COL_VS_WK_PB")
+            end
+        end
+        if not ref then
+            ref = history:GetPersonalBest(runData.mapID, runData.keyLevel)
+        end
+        tc.colPB.lbl:SetText(refLabel)
+
+        if ref and ref.elapsed and ref.elapsed > 0 then
+            local dpb = ref.elapsed - elapsed
             local pbStr = (dpb > 0 and "-" or "+") .. MP:FormatTime(math.abs(dpb))
             tc.colPB.val:SetText(pbStr)
             if dpb > 0 then
@@ -803,6 +824,75 @@ local function PopulateSplitsCard(f, runData)
 end
 
 ----------------------------------------------------------------------
+-- Populate interrupt card
+----------------------------------------------------------------------
+local INTERRUPT_ROW_H = 20
+
+local function PopulateInterruptCard(f, runData)
+    local ic    = f.interruptCard
+    local stats = runData.interruptStats
+    if not stats or #stats == 0 then
+        ic:Hide()
+        return
+    end
+
+    -- Fall back to lastRunStats if Timer fired before InterruptTracker cleared members
+    if #stats == 0 then
+        local it = MP:GetModule("InterruptTracker")
+        stats = it and it.lastRunStats or {}
+    end
+    if #stats == 0 then ic:Hide(); return end
+    ic:Show()
+
+    local count = #stats
+    for i = 1, count do
+        local row = ic.rows[i]
+        if not row then
+            row = CreateFrame("Frame", nil, ic.body)
+            row:SetHeight(INTERRUPT_ROW_H)
+            row.nameText = row:CreateFontString(nil, "OVERLAY")
+            row.nameText:SetFontObject(MP.Fonts.Body)
+            row.nameText:SetPoint("LEFT", 0, 0)
+            row.nameText:SetWordWrap(false)
+            row.countText = row:CreateFontString(nil, "OVERLAY")
+            row.countText:SetFontObject(MP.Fonts.Body)
+            row.countText:SetPoint("RIGHT", 0, 0)
+            row.countText:SetJustifyH("RIGHT")
+            ic.rows[i] = row
+        end
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT",  ic.body, "TOPLEFT",  0, -(i-1) * INTERRUPT_ROW_H)
+        row:SetPoint("TOPRIGHT", ic.body, "TOPRIGHT", 0, -(i-1) * INTERRUPT_ROW_H)
+        row:Show()
+
+        local s = stats[i]
+        local cc = RAID_CLASS_COLORS and s.class and RAID_CLASS_COLORS[s.class]
+        if cc then
+            row.nameText:SetTextColor(cc.r, cc.g, cc.b)
+        else
+            row.nameText:SetTextColor(MP.COLORS.textPrimary.r, MP.COLORS.textPrimary.g, MP.COLORS.textPrimary.b)
+        end
+        row.nameText:SetText(s.name or "?")
+
+        if s.kicks > 0 then
+            row.countText:SetText(tostring(s.kicks))
+            row.countText:SetTextColor(MP.COLORS.good.r, MP.COLORS.good.g, MP.COLORS.good.b)
+        else
+            row.countText:SetText("0")
+            row.countText:SetTextColor(MP.COLORS.textMuted.r, MP.COLORS.textMuted.g, MP.COLORS.textMuted.b)
+        end
+    end
+
+    for i = count + 1, #ic.rows do
+        if ic.rows[i] then ic.rows[i]:Hide() end
+    end
+
+    local bodyH = count * INTERRUPT_ROW_H
+    ic.body:SetHeight(bodyH)
+    ic:SetHeight(28 + bodyH + CARD_PAD)
+end
+
+----------------------------------------------------------------------
 -- Populate score card
 ----------------------------------------------------------------------
 local function PopulateScoreCard(f, runData, pred)
@@ -854,6 +944,7 @@ local function PopulateSummary(f, runData)
     PopulateTimeCard(f, runData)
     PopulateDeathCard(f, runData)
     PopulateSplitsCard(f, runData)
+    PopulateInterruptCard(f, runData)
     PopulateScoreCard(f, runData, pred)
 
     LayoutPanel(f)

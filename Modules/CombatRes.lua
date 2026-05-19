@@ -26,14 +26,16 @@ local SATED_DURATION = 600
 local BL_CLASSES = {
     SHAMAN = "certain",
     MAGE   = "certain",
+    EVOKER = "certain",
 }
 
 local BL_SPELL_IDS = {
-    [2825] = true,
-    [32182] = true,
-    [80353] = true,
-    [264667] = true,
-    [90355] = true,
+    [2825]   = true,   -- Bloodlust (Shaman)
+    [32182]  = true,   -- Heroism (Shaman)
+    [80353]  = true,   -- Time Warp (Mage)
+    [264667] = true,   -- Primal Rage (BM Hunter pet)
+    [90355]  = true,   -- Ancient Hysteria (Hunter exotic pet)
+    [390386] = true,   -- Fury of the Aspects (Evoker)
 }
 
 local SATED_IDS = {

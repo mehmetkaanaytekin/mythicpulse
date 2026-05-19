@@ -17,15 +17,15 @@ local DungeonTeleport = {
 ----------------------------------------------------------------------
 local TELEPORT_SPELLS = {
     -- Midnight Dungeons
-    [501] = { name = "Magisters' Terrace",      spellID = 410071 },
-    [502] = { name = "Maisara Caverns",         spellID = 410072 },
-    [503] = { name = "Nexus-Point Xenas",       spellID = 410073 },
-    [504] = { name = "Windrunner Spire",        spellID = 410074 },
+    [558] = { name = "Magisters' Terrace",      spellID = 410071 },
+    [560] = { name = "Maisara Caverns",         spellID = 410072 },
+    [559] = { name = "Nexus-Point Xenas",       spellID = 410073 },
+    [557] = { name = "Windrunner Spire",        spellID = 410074 },
     -- Legacy Dungeons
-    [505] = { name = "Algeth'ar Academy",       spellID = 395273 },
-    [506] = { name = "Pit of Saron",            spellID = 410075 },
-    [507] = { name = "Seat of the Triumvirate", spellID = 410076 },
-    [508] = { name = "Skyreach",                spellID = 410077 },
+    [402] = { name = "Algeth'ar Academy",       spellID = 395273 },
+    [556] = { name = "Pit of Saron",            spellID = 410075 },
+    [239] = { name = "Seat of the Triumvirate", spellID = 410076 },
+    [161] = { name = "Skyreach",                spellID = 410077 },
 }
 
 local function IsSpellKnownOrPlayer(spellID)

@@ -10,19 +10,20 @@ MP.AffixData   = {}
 
 ----------------------------------------------------------------------
 -- Season 1 Dungeon Pool
--- mapChallengeModeID values are placeholders; update with live IDs
+-- id = C_ChallengeMode.GetActiveChallengeMapID() (MapChallengeModeID from Map_ChallengeMode.db2)
+-- Sourced from MDT mapInfo tables (build 12.0.5.67602)
 ----------------------------------------------------------------------
 MP.DungeonData.Dungeons = {
     -- Midnight Dungeons
-    { id = 501, name = "Magisters' Terrace",      shortName = "MT",   timeLimit = 1980, numBosses = 3, expansion = "Midnight" },
-    { id = 502, name = "Maisara Caverns",         shortName = "MC",   timeLimit = 2100, numBosses = 4, expansion = "Midnight" },
-    { id = 503, name = "Nexus-Point Xenas",       shortName = "NPX",  timeLimit = 1920, numBosses = 3, expansion = "Midnight" },
-    { id = 504, name = "Windrunner Spire",        shortName = "WS",   timeLimit = 2040, numBosses = 4, expansion = "Midnight" },
+    { id = 558, name = "Magisters' Terrace",      shortName = "MT",   timeLimit = 1980, numBosses = 4, expansion = "Midnight" },
+    { id = 560, name = "Maisara Caverns",         shortName = "MC",   timeLimit = 2100, numBosses = 3, expansion = "Midnight" },
+    { id = 559, name = "Nexus-Point Xenas",       shortName = "NPX",  timeLimit = 1920, numBosses = 3, expansion = "Midnight" },
+    { id = 557, name = "Windrunner Spire",        shortName = "WS",   timeLimit = 2040, numBosses = 4, expansion = "Midnight" },
     -- Legacy Dungeons
-    { id = 505, name = "Algeth'ar Academy",       shortName = "AA",   timeLimit = 1800, numBosses = 4, expansion = "Dragonflight" },
-    { id = 506, name = "Pit of Saron",            shortName = "PoS",  timeLimit = 1860, numBosses = 3, expansion = "WotLK" },
-    { id = 507, name = "Seat of the Triumvirate", shortName = "SotT", timeLimit = 1740, numBosses = 4, expansion = "Legion" },
-    { id = 508, name = "Skyreach",                shortName = "SR",   timeLimit = 1680, numBosses = 4, expansion = "WoD" },
+    { id = 402, name = "Algeth'ar Academy",       shortName = "AA",   timeLimit = 1800, numBosses = 4, expansion = "Dragonflight" },
+    { id = 556, name = "Pit of Saron",            shortName = "PoS",  timeLimit = 1860, numBosses = 3, expansion = "WotLK" },
+    { id = 239, name = "Seat of the Triumvirate", shortName = "SotT", timeLimit = 1740, numBosses = 4, expansion = "Legion" },
+    { id = 161, name = "Skyreach",                shortName = "SR",   timeLimit = 1680, numBosses = 4, expansion = "WoD" },
 }
 
 --- Lookup table by mapID
