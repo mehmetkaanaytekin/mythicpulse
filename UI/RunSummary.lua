@@ -501,10 +501,7 @@ local function PopulateHero(f, runData, pred)
     -- Dungeon name + level
     local dname = runData.dungeonName
     if not dname or dname == "" then
-        local dungeon = MP.DungeonData and MP.DungeonData:GetByMapID(runData.mapID)
-        dname = (dungeon and dungeon.shortName)
-             or (C_ChallengeMode and C_ChallengeMode.GetMapUIInfo and
-                 C_ChallengeMode.GetMapUIInfo(runData.mapID))
+        dname = (MP.DungeonData and MP.DungeonData:GetInfo(runData.mapID).shortName)
              or MP:Loc("UNKNOWN")
     end
     hero.nameText:SetText(string.format("%s  +%d", dname, runData.keyLevel or 0))

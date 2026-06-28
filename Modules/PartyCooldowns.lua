@@ -147,25 +147,11 @@ for k in pairs(TRACKED_SPELLS) do
     if type(k) ~= "number" then TRACKED_SPELLS[k] = nil end
 end
 
--- Debuffs that indicate Bloodlust-equivalent was recently used.
--- Any of these on any party member means lust icons should appear on cooldown.
-local SATED_IDS = {
-    [57724]  = true,   -- Sated
-    [57723]  = true,   -- Exhaustion
-    [80354]  = true,   -- Temporal Displacement
-    [160455] = true,   -- Fatigued
-    [390435] = true,   -- Enervation (Fury of the Aspects)
-}
-
--- Quick-lookup set of all lust spell IDs tracked above.
-local LUST_SPELL_IDS = {
-    [2825]   = true,
-    [32182]  = true,
-    [80353]  = true,
-    [390386] = true,
-    [264667] = true,
-    [90355]  = true,
-}
+-- Debuffs that indicate Bloodlust-equivalent was recently used, and the set of
+-- lust spell IDs. Shared with CombatRes via Data/LustData.lua (single source of
+-- truth). Any Sated debuff on any party member means lust icons go on cooldown.
+local SATED_IDS      = MP.LustData.SATED_IDS
+local LUST_SPELL_IDS = MP.LustData.LUST_SPELL_IDS
 
 ----------------------------------------------------------------------
 -- Talent-based Cooldown Modifications

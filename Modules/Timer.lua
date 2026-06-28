@@ -359,8 +359,10 @@ local function StartRun()
         for _, id in ipairs(affixIDs) do table.insert(Timer.affixes, id) end
     end
 
-    local dungeon = MP.DungeonData:GetByMapID(mapID)
-    Timer.bossCount = dungeon and dungeon.numBosses or 0
+    local info = MP.DungeonData:GetInfo(mapID)
+    -- Informational only; boss-split rows are created dynamically on ENCOUNTER_END,
+    -- so an unknown (e.g. new-season) dungeon still tracks splits correctly.
+    Timer.bossCount = info.numBosses or 0
 
     if timerBar then
         timerBar:Reset()
@@ -376,7 +378,7 @@ local function StartRun()
     ClearLiveText()
     UpdateAffixText()
 
-    local shortName = MP.DungeonData:GetShortName(mapID) or name
+    local shortName = info.shortName or name
     MP.MainFrame:SetDungeonInfo(shortName, level)
     MP.MainFrame.frame:Show()
 
@@ -446,7 +448,7 @@ local function EndRun(completed)
         date           = date("%Y-%m-%d %H:%M"),
         bossSplits     = Timer.bossSplits,
         affixes        = Timer.affixes,
-        dungeonName    = (MP.DungeonData and MP.DungeonData:GetByMapID(Timer.mapID) or {}).shortName,
+        dungeonName    = MP.DungeonData and MP.DungeonData:GetInfo(Timer.mapID).shortName,
         deathPenalty   = deathPenalty,
         totalPenalty   = deaths * deathPenalty,
         interruptStats = interruptStats,

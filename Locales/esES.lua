@@ -253,7 +253,6 @@ L["CONFIG_AUTO_KICKS"]      = "Anuncio automático de rotación de interrupcione
 L["CONFIG_INT_COMBAT_ONLY"] = "Mostrar seguidor de interrupciones solo en combate"
 L["CONFIG_HDR_BL_BREZ"]     = "Sed de sangre / Resurrección de combate"
 L["CONFIG_BREZ_NOTE"]       = "Detección automática: Chamán, Mago y Cazador (con mascota activa)."
-L["CONFIG_MORE_SOON"]       = "Más opciones próximamente."
 
 -- Config Panel — Utility Tab
 L["CONFIG_HDR_UTILITY"]     = "Panel de utilidades de mazmorra"

@@ -13,19 +13,24 @@ local DungeonTeleport = {
 }
 
 ----------------------------------------------------------------------
--- Dungeon Teleport Spell Data (Season 1)
+-- Dungeon Teleport Spell Data (keyed by ChallengeMapID)
+-- Buttons only appear for dungeons listed here whose teleport spell the
+-- player knows; an unknown (e.g. new-season) dungeon simply shows no button.
+-- See Docs/SEASON_UPDATE.md for how to add a new season's teleports.
 ----------------------------------------------------------------------
 local TELEPORT_SPELLS = {
-    -- Midnight Dungeons
+    -- Season 1 — Midnight Dungeons
     [558] = { name = "Magisters' Terrace",      spellID = 410071 },
     [560] = { name = "Maisara Caverns",         spellID = 410072 },
     [559] = { name = "Nexus-Point Xenas",       spellID = 410073 },
     [557] = { name = "Windrunner Spire",        spellID = 410074 },
-    -- Legacy Dungeons
+    -- Season 1 — Legacy Dungeons
     [402] = { name = "Algeth'ar Academy",       spellID = 395273 },
     [556] = { name = "Pit of Saron",            spellID = 410075 },
     [239] = { name = "Seat of the Triumvirate", spellID = 410076 },
     [161] = { name = "Skyreach",                spellID = 410077 },
+
+    -- Season 2 — fill in once datamined: [ChallengeMapID] = { name = "...", spellID = <teleportSpellID> },
 }
 
 local function IsSpellKnownOrPlayer(spellID)

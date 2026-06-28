@@ -253,7 +253,6 @@ L["CONFIG_AUTO_KICKS"]     = "Unterbrechungsrotation automatisch ankündigen"
 L["CONFIG_INT_COMBAT_ONLY"]= "Unterbrechungs-Verfolgung nur im Kampf anzeigen"
 L["CONFIG_HDR_BL_BREZ"]    = "Schlachtruf / Kampfauferstehung"
 L["CONFIG_BREZ_NOTE"]      = "Automatische Erkennung: Schamane, Magier und Jäger (mit aktivem Begleiter)."
-L["CONFIG_MORE_SOON"]      = "Weitere Optionen folgen in Kürze."
 
 -- Config Panel — Utility Tab
 L["CONFIG_HDR_UTILITY"]    = "Dungeon-Hilfsmittel-Panel"

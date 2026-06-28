@@ -4,3 +4,6 @@ ignore:
   - .github
   - README.md
   - .gitignore
+  - .claude
+  - ruvector.db
+  - Docs

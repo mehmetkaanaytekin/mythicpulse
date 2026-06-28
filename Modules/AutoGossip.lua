@@ -91,6 +91,13 @@ local AUTO_GOSSIP = {
     -- Verify the exact NPC name in normal mode with DEBUG_GOSSIP_NAMES = true.
     -- -----------------------------------------------------------------------
     -- ["<NPC Name>"] = { option = "first", note = "MC: <description>" },
+
+    -- =======================================================================
+    -- SEASON 2 — add gating-NPC entries here once the dungeon pool is known.
+    -- Capture exact names in-game with DEBUG_GOSSIP_NAMES = true. See
+    -- Docs/SEASON_UPDATE.md. Entries are keyed by NPC display name, e.g.:
+    --   ["<NPC Name>"] = { option = "first", note = "<dungeon>: <description>" },
+    -- =======================================================================
 }
 
 ----------------------------------------------------------------------

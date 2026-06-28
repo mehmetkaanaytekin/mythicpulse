@@ -253,7 +253,6 @@ L["CONFIG_AUTO_KICKS"]     = "Annoncer automatiquement la rotation des interrupt
 L["CONFIG_INT_COMBAT_ONLY"]= "Afficher le suivi des interruptions uniquement en combat"
 L["CONFIG_HDR_BL_BREZ"]    = "Hastement / Résurrection de combat"
 L["CONFIG_BREZ_NOTE"]      = "Détection automatique : Chaman, Mage et Chasseur (avec une invocation active)."
-L["CONFIG_MORE_SOON"]      = "D'autres options arrivent bientôt."
 
 -- Config Panel — Utility Tab
 L["CONFIG_HDR_UTILITY"]    = "Panneau d'utilitaire de donjon"

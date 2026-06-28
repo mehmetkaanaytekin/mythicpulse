@@ -156,12 +156,8 @@ function DungeonHistory:ShowSummary()
     if next(highest) then
         MP:Print("|cff00ccff" .. MP:Loc("HIST_HIGHEST_KEYS") .. "|r")
         for mapID, run in pairs(highest) do
-            local dungeonInfo = MP.DungeonData and MP.DungeonData:GetByMapID(mapID)
-            local dName = dungeonInfo and dungeonInfo.shortName
-            if not dName then
-                local apiName = C_ChallengeMode.GetMapUIInfo(mapID)
-                dName = apiName or MP:Loc("HIST_MAP_FALLBACK", mapID)
-            end
+            local dName = MP.DungeonData and MP.DungeonData:GetInfo(mapID).shortName
+                          or MP:Loc("HIST_MAP_FALLBACK", mapID)
             MP:Print(string.format("  %s: |cffffffff+%d|r (%s)",
                 dName, run.keyLevel, MP:FormatTime(run.elapsed)))
         end
@@ -174,12 +170,8 @@ function DungeonHistory:ShowSummary()
         if shown >= 5 then break end
         local run = MP.db.history[i]
         if run.mapID and run.mapID > 0 and (run.keyLevel or 0) > 0 and (run.elapsed or 0) > 0 then
-            local dungeonInfo = MP.DungeonData:GetByMapID(run.mapID)
-            local dName = dungeonInfo and dungeonInfo.shortName
-            if not dName then
-                local apiName = C_ChallengeMode.GetMapUIInfo(run.mapID)
-                dName = apiName or MP:Loc("HIST_MAP_FALLBACK", run.mapID)
-            end
+            local dName = MP.DungeonData:GetInfo(run.mapID).shortName
+                          or MP:Loc("HIST_MAP_FALLBACK", run.mapID)
             local status = run.timed and ("|cff4dff4d" .. MP:Loc("HIST_TIMED") .. "|r") or ("|cffff4444" .. MP:Loc("HIST_DEPLETED") .. "|r")
             MP:Print(string.format("  %s +%d — %s — %s (%s)",
                 dName, run.keyLevel, MP:FormatTime(run.elapsed),
