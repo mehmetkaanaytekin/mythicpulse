@@ -47,6 +47,7 @@ MP.UtilityData.supportedTags = {
 ----------------------------------------------------------------------
 -- Dungeon Names (instanceID -> display name)
 ----------------------------------------------------------------------
+-- NOTE: keyed by instanceID (GetInstanceInfo), NOT ChallengeMapID. See Docs/SEASON_UPDATE.md.
 MP.UtilityData.dungeonNames = {
     [2526] = "Algeth'ar Academy",
     [2811] = "Magisters' Terrace",
@@ -56,10 +57,25 @@ MP.UtilityData.dungeonNames = {
     [1753] = "Seat of the Triumvirate",
     [1209] = "Skyreach",
     [2805] = "Windrunner Spire",
+    -- Season 2: add [instanceID] = "Name" rows here (and matching dungeonEntries below).
 }
 
--- Default dungeon to show when not in a dungeon
+-- Default dungeon to show when not in a dungeon. May be stale across a season
+-- rotation, so consumers should call GetDefaultDungeonID() instead of reading
+-- this directly.
 MP.UtilityData.defaultDungeonID = 2526
+
+--- Return a default instanceID that is guaranteed to exist in dungeonEntries.
+--- Prefers defaultDungeonID, but falls back to any available entry so a stale
+--- default (e.g. after a season rotation) never shows an empty panel by mistake.
+function MP.UtilityData:GetDefaultDungeonID()
+    local entries = self.dungeonEntries
+    if not entries then return self.defaultDungeonID end
+    if self.defaultDungeonID and entries[self.defaultDungeonID] then
+        return self.defaultDungeonID
+    end
+    return (next(entries))
+end
 
 ----------------------------------------------------------------------
 -- Dungeon Entries (instanceID -> array of mechanic entries)

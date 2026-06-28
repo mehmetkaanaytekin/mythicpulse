@@ -1,6 +1,19 @@
 --[[
-    MythicPulse - Dungeon Data (Midnight Season 1)
+    MythicPulse - Dungeon Data
     Contains dungeon metadata, affix data, and helper functions.
+
+    SEASON ROTATION:
+      The hardcoded pool below is only an ENRICHMENT layer (short codes, etc.).
+      Core features (timer, name, time limit, affixes) resolve from live
+      C_ChallengeMode / C_MythicPlus APIs and work on ANY dungeon rotation with
+      no code change — see MP.DungeonData:GetInfo(). To switch to a new season,
+      bump CURRENT_SEASON and fill in that season's table (and the value-add data
+      in DungeonTeleport / UtilityDungeons / AutoGossip). See Docs/SEASON_UPDATE.md.
+
+      NOTE: dungeon ids here are ChallengeMapIDs
+      (C_ChallengeMode.GetActiveChallengeMapID / MapChallengeModeID from
+      Map_ChallengeMode.db2). UtilityDungeons.lua keys on instanceID — a
+      different ID space.
 ]]
 
 local _, MP = ...
@@ -9,22 +22,38 @@ MP.DungeonData = {}
 MP.AffixData   = {}
 
 ----------------------------------------------------------------------
--- Season 1 Dungeon Pool
--- id = C_ChallengeMode.GetActiveChallengeMapID() (MapChallengeModeID from Map_ChallengeMode.db2)
--- Sourced from MDT mapInfo tables (build 12.0.5.67602)
+-- Season Dungeon Pools (keyed by ChallengeMapID)
+-- Sourced from MDT mapInfo tables (Season 1 = build 12.0.5.67602).
 ----------------------------------------------------------------------
-MP.DungeonData.Dungeons = {
-    -- Midnight Dungeons
-    { id = 558, name = "Magisters' Terrace",      shortName = "MT",   timeLimit = 1980, numBosses = 4, expansion = "Midnight" },
-    { id = 560, name = "Maisara Caverns",         shortName = "MC",   timeLimit = 2100, numBosses = 3, expansion = "Midnight" },
-    { id = 559, name = "Nexus-Point Xenas",       shortName = "NPX",  timeLimit = 1920, numBosses = 3, expansion = "Midnight" },
-    { id = 557, name = "Windrunner Spire",        shortName = "WS",   timeLimit = 2040, numBosses = 4, expansion = "Midnight" },
-    -- Legacy Dungeons
-    { id = 402, name = "Algeth'ar Academy",       shortName = "AA",   timeLimit = 1800, numBosses = 4, expansion = "Dragonflight" },
-    { id = 556, name = "Pit of Saron",            shortName = "PoS",  timeLimit = 1860, numBosses = 3, expansion = "WotLK" },
-    { id = 239, name = "Seat of the Triumvirate", shortName = "SotT", timeLimit = 1740, numBosses = 4, expansion = "Legion" },
-    { id = 161, name = "Skyreach",                shortName = "SR",   timeLimit = 1680, numBosses = 4, expansion = "WoD" },
+MP.DungeonData.CURRENT_SEASON = 1
+
+MP.DungeonData.Seasons = {
+    -- Midnight Season 1
+    [1] = {
+        -- Midnight Dungeons
+        { id = 558, name = "Magisters' Terrace",      shortName = "MT",   timeLimit = 1980, numBosses = 4, expansion = "Midnight" },
+        { id = 560, name = "Maisara Caverns",         shortName = "MC",   timeLimit = 2100, numBosses = 3, expansion = "Midnight" },
+        { id = 559, name = "Nexus-Point Xenas",       shortName = "NPX",  timeLimit = 1920, numBosses = 3, expansion = "Midnight" },
+        { id = 557, name = "Windrunner Spire",        shortName = "WS",   timeLimit = 2040, numBosses = 4, expansion = "Midnight" },
+        -- Legacy Dungeons
+        { id = 402, name = "Algeth'ar Academy",       shortName = "AA",   timeLimit = 1800, numBosses = 4, expansion = "Dragonflight" },
+        { id = 556, name = "Pit of Saron",            shortName = "PoS",  timeLimit = 1860, numBosses = 3, expansion = "WotLK" },
+        { id = 239, name = "Seat of the Triumvirate", shortName = "SotT", timeLimit = 1740, numBosses = 4, expansion = "Legion" },
+        { id = 161, name = "Skyreach",                shortName = "SR",   timeLimit = 1680, numBosses = 4, expansion = "WoD" },
+    },
+
+    -- Midnight Season 2 — STUB. Populate once ChallengeMapIDs are datamined,
+    -- then set CURRENT_SEASON = 2. Until then the addon still works on S2
+    -- dungeons via the live-API fallback in GetInfo() (short codes just won't
+    -- show until filled in). One row per dungeon:
+    --   { id = <ChallengeMapID>, name = "...", shortName = "...", timeLimit = <seconds>, numBosses = N, expansion = "Midnight" },
+    [2] = {
+        -- (fill in for Season 2 — see Docs/SEASON_UPDATE.md)
+    },
 }
+
+--- Active-season dungeon pool (enrichment layer for the live APIs).
+MP.DungeonData.Dungeons = MP.DungeonData.Seasons[MP.DungeonData.CURRENT_SEASON] or {}
 
 --- Lookup table by mapID
 MP.DungeonData.ByMapID = {}
@@ -61,14 +90,44 @@ function MP.DungeonData:GetByMapID(mapID)
     return self.ByMapID[mapID]
 end
 
+--- Read name + time limit from the live Blizzard API (works on any season's
+--- dungeons). Returns name, timeLimit (either may be nil/0 when unavailable).
+local function ApiMapInfo(mapID)
+    if mapID and C_ChallengeMode and C_ChallengeMode.GetMapUIInfo then
+        local name, _, timeLimit = C_ChallengeMode.GetMapUIInfo(mapID)
+        return name, timeLimit
+    end
+    return nil, nil
+end
+
+--- Merged, always-populated dungeon info for ANY mapID — including dungeons not
+--- in the hardcoded pool (e.g. a new season). Prefers the live API for
+--- name/time limit, using the hardcoded table only to enrich (short codes,
+--- expansion). This is the single resolver all consumers should use.
+function MP.DungeonData:GetInfo(mapID)
+    local d = self.ByMapID[mapID]
+    local apiName, apiTimeLimit = ApiMapInfo(mapID)
+    return {
+        id        = mapID,
+        name      = apiName or (d and d.name),
+        shortName = (d and d.shortName) or apiName,   -- full name if no short code
+        timeLimit = (d and d.timeLimit) or apiTimeLimit or 0,
+        numBosses = (d and d.numBosses) or 0,
+        expansion = d and d.expansion,
+    }
+end
+
 function MP.DungeonData:GetShortName(mapID)
     local d = self.ByMapID[mapID]
-    return d and d.shortName
+    if d and d.shortName then return d.shortName end
+    return (ApiMapInfo(mapID))   -- live name, or nil
 end
 
 function MP.DungeonData:GetTimeLimit(mapID)
     local d = self.ByMapID[mapID]
-    return d and d.timeLimit or 0
+    if d and d.timeLimit then return d.timeLimit end
+    local _, apiTimeLimit = ApiMapInfo(mapID)
+    return apiTimeLimit or 0
 end
 
 function MP.DungeonData:GetAll()

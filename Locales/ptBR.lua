@@ -253,7 +253,6 @@ L["CONFIG_AUTO_KICKS"]     = "Anunciar Automaticamente a Rotação de Interrupç
 L["CONFIG_INT_COMBAT_ONLY"]= "Mostrar Rastreador de Interrupção Apenas em Combate"
 L["CONFIG_HDR_BL_BREZ"]    = "Bloodlust / Ressurreição de Combate"
 L["CONFIG_BREZ_NOTE"]      = "Detecta automaticamente: Xamã, Mago e Caçador (com pet ativo)."
-L["CONFIG_MORE_SOON"]      = "Mais opções em breve."
 
 -- Config Panel — Utility Tab
 L["CONFIG_HDR_UTILITY"]    = "Painel de Utilidades da Masmorra"

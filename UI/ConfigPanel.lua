@@ -591,7 +591,6 @@ local function BuildPanel()
         p:Gap(12)
         p:Header(MP:Loc("CONFIG_HDR_BL_BREZ"))
         p:Note(MP:Loc("CONFIG_BREZ_NOTE"))
-        p:Note(MP:Loc("CONFIG_MORE_SOON"))
     end)
 
     ----------------------------------------------------------------

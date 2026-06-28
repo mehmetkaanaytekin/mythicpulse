@@ -1,5 +1,7 @@
 # Ruflo/Claude Code local state
 ruvector.db
+agentdb.rvf
+agentdb.rvf.lock
 .claude/
 
 # OS noise

@@ -515,9 +515,11 @@ function DungeonUtility:OnEvent(event, ...)
             else
                 -- On login/reload, use default dungeon
                 local UD = MP.UtilityData
-                local defaultID = UD and UD.defaultDungeonID or 2526
-                DungeonUtility.currentDungeonID = defaultID
-                DungeonUtility:PopulateForDungeon(defaultID)
+                local defaultID = UD and UD:GetDefaultDungeonID()
+                if defaultID then
+                    DungeonUtility.currentDungeonID = defaultID
+                    DungeonUtility:PopulateForDungeon(defaultID)
+                end
             end
         end)
 
@@ -574,9 +576,11 @@ function DungeonUtility:Toggle()
         self:PopulateForDungeon(self.currentDungeonID)
     else
         local UD = MP.UtilityData
-        local defaultID = UD and UD.defaultDungeonID or 2526
-        self.currentDungeonID = defaultID
-        self:PopulateForDungeon(defaultID)
+        local defaultID = UD and UD:GetDefaultDungeonID()
+        if defaultID then
+            self.currentDungeonID = defaultID
+            self:PopulateForDungeon(defaultID)
+        end
     end
 
     MP.UtilityFrame:Toggle()

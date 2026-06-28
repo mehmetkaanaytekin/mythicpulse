@@ -253,7 +253,6 @@ L["CONFIG_AUTO_KICKS"]      = "Annuncio automatico rotazione interruzioni"
 L["CONFIG_INT_COMBAT_ONLY"] = "Mostra tracker interruzioni solo in combattimento"
 L["CONFIG_HDR_BL_BREZ"]     = "Sete di sangue / Resurrezione di combattimento"
 L["CONFIG_BREZ_NOTE"]       = "Rilevamento automatico: Sciamano, Mago e Cacciatore (con pet attivo)."
-L["CONFIG_MORE_SOON"]       = "Altre opzioni in arrivo."
 
 -- Config Panel — Utility Tab
 L["CONFIG_HDR_UTILITY"]     = "Pannello utilità istanza"

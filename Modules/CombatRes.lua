@@ -29,29 +29,11 @@ local BL_CLASSES = {
     EVOKER = "certain",
 }
 
-local BL_SPELL_IDS = {
-    [2825]   = true,   -- Bloodlust (Shaman)
-    [32182]  = true,   -- Heroism (Shaman)
-    [80353]  = true,   -- Time Warp (Mage)
-    [264667] = true,   -- Primal Rage (BM Hunter pet)
-    [90355]  = true,   -- Ancient Hysteria (Hunter exotic pet)
-    [390386] = true,   -- Fury of the Aspects (Evoker)
-}
-
-local SATED_IDS = {
-    [57724] = true,
-    [57723] = true,
-    [80354] = true,
-    [160455] = true,
-    [390435] = true,
-}
-
-local BREZ_SPELLS = {
-    [20484] = { class = "DRUID", duration = 600 },
-    [61999] = { class = "DEATHKNIGHT", duration = 600 },
-    [391054] = { class = "PALADIN", duration = 600 },
-    [20707] = { class = "WARLOCK", duration = 600 },
-}
+-- Lust / Sated / battle-res data is shared with PartyCooldowns via
+-- Data/LustData.lua (single source of truth).
+local BL_SPELL_IDS = MP.LustData.LUST_SPELL_IDS
+local SATED_IDS    = MP.LustData.SATED_IDS
+local BREZ_SPELLS  = MP.LustData.BREZ_SPELLS
 
 local BY_CLASS = {}
 for spellID, data in pairs(BREZ_SPELLS) do

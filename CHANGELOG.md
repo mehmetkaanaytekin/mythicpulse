@@ -1,5 +1,34 @@
 # MythicPulse Changelog
 
+## 1.3.0 — 2026-06-28
+
+### Season 2 Readiness
+
+- **Works on any dungeon rotation with no code change.** Core features (timer, dungeon name, time limit, affix row, enemy forces, boss splits, run summary, score prediction) already resolve from live Blizzard `C_ChallengeMode`/`C_MythicPlus` APIs. Consolidated the table→API fallback into a single `MP.DungeonData:GetInfo()` resolver so unknown (new-season) dungeons get the live name/time limit instead of blank/zero, and `GetShortName`/`GetTimeLimit` now fall back to the API too.
+- Restructured `Data/Dungeons.lua` into a season-keyed pool (`MP.DungeonData.Seasons` + `CURRENT_SEASON`) with a clearly-marked Season 2 stub — switching seasons is a one-line change plus a data fill.
+- Added commented Season 2 data stubs to `DungeonTeleport`, `UtilityDungeons`, and `AutoGossip`, and `GetDefaultDungeonID()` so the Dungeon Utility panel never shows a stale default after a rotation.
+- New `Docs/SEASON_UPDATE.md` — a maintainer checklist for populating a new season (which files, which ID space, how to capture IDs in-game).
+
+### Maintenance
+
+- Centralized the Bloodlust / Sated / battle-res spell tables into `Data/LustData.lua` — they were duplicated in `PartyCooldowns` and `CombatRes` and had to be hand-synced. Single source of truth now.
+- Removed the lingering "More options coming soon" placeholder note from the config panel (and all locales).
+- Excluded `ruvector.db`, `.claude`, and `Docs` from the packaged CurseForge zip via `.pkgmeta`.
+
+## 1.2.3 — 2026-05-xx
+
+### Features
+
+**Full Localization**
+- Added a crash-safe `MP:Loc()` helper that falls back to the key name on a missing translation.
+- Externalized hardcoded UI strings across Core, InterruptTracker, Timer, ConfigPanel, RunSummary, and the UI modules.
+- Added 5 new locales: French (frFR), German (deDE), Spanish (esES), Italian (itIT), Brazilian Portuguese (ptBR), alongside the existing Russian (ruRU).
+
+### Bug Fixes
+
+- **Interrupt rotation:** healer specs (Disc/Holy Priest, Holy Paladin, Mistweaver Monk, Preservation Evoker, Resto Druid) are now excluded from the kick rotation per patch 12.0.5; Resto Shaman (Wind Shear) is retained.
+- **Bloodlust/Sated:** lust icons now correctly show on cooldown while any party member carries a Sated-family debuff — covering the case where the lust caster is not running MythicPulse (no Comm message arrives).
+
 ## 1.2.2 — 2026-05-06
 
 ### Features

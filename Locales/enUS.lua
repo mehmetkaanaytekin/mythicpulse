@@ -224,7 +224,6 @@ MP.L = {
     ["CONFIG_INT_COMBAT_ONLY"]= "Show Interrupt Tracker in Combat Only",
     ["CONFIG_HDR_BL_BREZ"]    = "Bloodlust / Battle Res",
     ["CONFIG_BREZ_NOTE"]      = "Auto-detects: Shaman, Mage, and Hunter (with active pet).",
-    ["CONFIG_MORE_SOON"]      = "More options coming soon.",
 
     -- ===== Config Panel — Utility Tab =====
     ["CONFIG_HDR_UTILITY"]    = "Dungeon Utility Panel",

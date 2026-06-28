@@ -252,7 +252,6 @@ L["CONFIG_AUTO_KICKS"]     = "Авто-объявление ротации пр�
 L["CONFIG_INT_COMBAT_ONLY"]= "Показывать трекер прерываний только в бою"
 L["CONFIG_HDR_BL_BREZ"]    = "Боевой клич / Боевое воскрешение"
 L["CONFIG_BREZ_NOTE"]      = "Авто-определение: Шаман, Маг и Охотник (с активным питомцем)."
-L["CONFIG_MORE_SOON"]      = "Больше настроек скоро."
 
 -- Config Panel — Utility Tab
 L["CONFIG_HDR_UTILITY"]    = "Панель утилит подземелья"
