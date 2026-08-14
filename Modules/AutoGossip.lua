@@ -93,9 +93,11 @@ local AUTO_GOSSIP = {
     -- ["<NPC Name>"] = { option = "first", note = "MC: <description>" },
 
     -- =======================================================================
-    -- SEASON 2 — add gating-NPC entries here once the dungeon pool is known.
-    -- Capture exact names in-game with DEBUG_GOSSIP_NAMES = true. See
-    -- Docs/SEASON_UPDATE.md. Entries are keyed by NPC display name, e.g.:
+    -- SEASON 2 pool (see Data/Dungeons.lua for the confirmed list + source):
+    -- Altar of Fangs, Murder Row, Den of Nalorakk, The Blinding Vale, Voidscar
+    -- Arena, King's Rest, Temple of Sethraliss, Ruby Life Pools.
+    -- Capture exact gating-NPC names in-game with DEBUG_GOSSIP_NAMES = true.
+    -- Entries are keyed by NPC display name, e.g.:
     --   ["<NPC Name>"] = { option = "first", note = "<dungeon>: <description>" },
     -- =======================================================================
 }

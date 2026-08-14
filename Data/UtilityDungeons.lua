@@ -57,7 +57,18 @@ MP.UtilityData.dungeonNames = {
     [1753] = "Seat of the Triumvirate",
     [1209] = "Skyreach",
     [2805] = "Windrunner Spire",
-    -- Season 2: add [instanceID] = "Name" rows here (and matching dungeonEntries below).
+    -- Season 2. instanceID = MapChallengeMode.MapID field (verified against
+    -- Skyreach/Windrunner Spire above, which match exactly), wago.tools 2026-08-14.
+    [2993] = "Altar of Fangs",
+    [2813] = "Murder Row",
+    [2825] = "Den of Nalorakk",
+    [2859] = "The Blinding Vale",
+    [2923] = "Voidscar Arena",
+    [1762] = "Kings' Rest",
+    [1877] = "Temple of Sethraliss",
+    [2521] = "Ruby Life Pools",
+    -- No dungeonEntries (CC/stops/skips content) authored yet for these —
+    -- they'll show in the dropdown with an empty panel until written.
 }
 
 -- Default dungeon to show when not in a dungeon. May be stale across a season

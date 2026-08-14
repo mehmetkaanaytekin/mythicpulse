@@ -30,7 +30,20 @@ local TELEPORT_SPELLS = {
     [239] = { name = "Seat of the Triumvirate", spellID = 410076 },
     [161] = { name = "Skyreach",                spellID = 410077 },
 
-    -- Season 2 — fill in once datamined: [ChallengeMapID] = { name = "...", spellID = <teleportSpellID> },
+    -- Season 2 — Midnight Dungeons. spellIDs from the live SpellName DB2
+    -- (wago.tools, 2026-08-14); button only shows if IsSpellKnownOrPlayer()
+    -- passes, so a wrong/stale ID just means no button, never a bad teleport.
+    [588] = { name = "Altar of Fangs",      spellID = 1289772 },
+    [586] = { name = "Den of Nalorakk",     spellID = 1289773 },
+    [587] = { name = "Murder Row",          spellID = 1289775 }, -- picked newest of 3 same-named candidates
+    [584] = { name = "The Blinding Vale",   spellID = 1289776 },
+    [585] = { name = "Voidscar Arena",      spellID = 1289777 }, -- picked newest of 2 same-named candidates
+    -- Season 2 — Legacy Dungeons (each had an older same-named spell from its
+    -- original season too; picked the newest ID, matching the pattern already
+    -- confirmed for Skyreach above: 410077 (kept) vs. a stale 169765 (unused)).
+    [249] = { name = "Kings' Rest",         spellID = 1289778 },
+    [250] = { name = "Temple of Sethraliss",spellID = 1289782 },
+    [399] = { name = "Ruby Life Pools",     spellID = 1289780 },
 }
 
 local function IsSpellKnownOrPlayer(spellID)

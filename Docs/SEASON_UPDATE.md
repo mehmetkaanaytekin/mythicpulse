@@ -17,6 +17,42 @@ core function):
 
 This doc is the checklist for restoring those for a new season.
 
+## Season 2 pool (confirmed 2026-08-14)
+
+Live August 18, 2026 per Blizzard's "The Shadows Deepen: Midnight Season 2
+Begins August 18" news post (cross-checked against Method.gg, Wowhead, Warcraft
+Wiki). Eight dungeons — five Midnight, three legacy:
+
+| Dungeon | Expansion |
+|---|---|
+| Altar of Fangs (new, patch 12.1) | Midnight |
+| Murder Row | Midnight |
+| Den of Nalorakk | Midnight |
+| The Blinding Vale | Midnight |
+| Voidscar Arena | Midnight |
+| King's Rest | Battle for Azeroth |
+| Temple of Sethraliss | Battle for Azeroth |
+| Ruby Life Pools | Dragonflight |
+
+**Update 2026-08-14:** ChallengeMapID, instanceID, and timeLimit were pulled
+from the live MapChallengeMode DB2 via wago.tools and are filled into
+`Data/Dungeons.lua` `Seasons[2]` and `Data/UtilityDungeons.lua` `dungeonNames`
+— cross-checked twice and matched against Season 1's known-good rows
+(Skyreach/Windrunner Spire), so treat these as solid. Teleport spellIDs in
+`Modules/DungeonTeleport.lua` are filled too, but several dungeons had 2-3
+same-named "Teleport: X" spells in the DB2 (old spells from a dungeon's prior
+season/remix are never removed) — picked the newest ID each time, following
+the same pattern already proven correct for Skyreach (410077 kept, a stale
+169765 ignored). If a teleport button doesn't appear for a Season 2 dungeon
+once live, that guess was wrong for that one — `IsSpellKnownOrPlayer()` already
+makes a wrong ID fail silently (no button) rather than break anything, so
+re-check with `/dump C_Spell.GetSpellName(<id>)` and swap it in.
+
+Still genuinely unfillable from the web — needs someone standing in the
+dungeon: gossip-gating NPC names (`Modules/AutoGossip.lua`), and the
+`dungeonEntries` mechanic content (CC/stops/skips reference) in
+`Data/UtilityDungeons.lua`.
+
 ## Two ID spaces — don't mix them up
 
 | Data | ID type | How to read it |
@@ -25,32 +61,31 @@ This doc is the checklist for restoring those for a new season.
 | `Data/UtilityDungeons.lua` | **instanceID** | stand in the dungeon: `/dump select(8, GetInstanceInfo())` |
 | `Modules/AutoGossip.lua` | **NPC display name** | set `DEBUG_GOSSIP_NAMES = true` in that file, talk to the NPC |
 
-## Checklist
+## Checklist — what's left for Season 2
 
-1. **`Data/Dungeons.lua`** — fill in `MP.DungeonData.Seasons[2]` with one row per
-   dungeon: `{ id = <ChallengeMapID>, name, shortName, timeLimit, numBosses, expansion }`.
-   Then set `MP.DungeonData.CURRENT_SEASON = 2`. (`timeLimit`/`name` come from the
-   live API anyway; the table just adds the short code + metadata.)
+1. ~~`Data/Dungeons.lua`~~ — done. `Seasons` tables now merge into one lookup
+   (see `MP.DungeonData.ByMapID`), so there's no per-season switch to flip
+   for future seasons either — just add the new season's table.
 
-2. **`Modules/DungeonTeleport.lua`** — add `[ChallengeMapID] = { name, spellID }`
-   rows in the `TELEPORT_SPELLS` table. Find teleport spell IDs on Wowhead or via
-   `/dump C_Spell.GetSpellName(<id>)`.
+2. `Modules/DungeonTeleport.lua` — spellIDs filled but best-effort where the
+   DB2 had duplicate-named spells (see note above). Confirm in-game once
+   Season 2 keys are active: does the teleport button appear / actually
+   teleport? Swap the ID if not.
 
-3. **`Data/UtilityDungeons.lua`** — add the new instanceIDs to `dungeonNames`, then
-   author a `dungeonEntries[<instanceID>]` block of mechanic entries (use the
-   `{spell:ID}` / `{npc:ID}` placeholder syntax like the existing blocks). Update
-   `defaultDungeonID` to a current-season instanceID. (Consumers call
-   `GetDefaultDungeonID()`, which already falls back to any valid entry if the
-   default is stale.)
+3. ~~`Data/UtilityDungeons.lua` `dungeonNames`~~ — done. Still open: author
+   `dungeonEntries[<instanceID>]` mechanic blocks (CC/stops/skips, using the
+   `{spell:ID}` / `{npc:ID}` placeholder syntax like the existing blocks) for
+   the 8 Season 2 dungeons. This needs real route knowledge, not just IDs.
 
-4. **`Modules/AutoGossip.lua`** — capture gating-NPC names in-game with
-   `DEBUG_GOSSIP_NAMES = true`, then add `["<NPC Name>"] = { option, note }` entries
-   in the Season 2 block.
+4. `Modules/AutoGossip.lua` — capture gating-NPC names in-game with
+   `DEBUG_GOSSIP_NAMES = true`, then add `["<NPC Name>"] = { option, note }`
+   entries in the Season 2 block.
 
-5. **`MythicPulse.toc`** — bump `## X-Season` to the new season number and bump
-   `## Version`.
+5. `MythicPulse.toc` — bump `## X-Season` and `## Version` once the above is
+   good enough to ship (doesn't have to be 100% — enrichment degrades
+   gracefully per the intro).
 
-6. **`CHANGELOG.md`** — add the new release entry.
+6. `CHANGELOG.md` — add the new release entry.
 
 ## Affixes
 

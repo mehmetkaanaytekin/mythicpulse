@@ -1,5 +1,26 @@
 # MythicPulse Changelog
 
+## 1.4.0 — 2026-08-14
+
+### Season 2 Data
+
+- Filled in the real Midnight Season 2 dungeon pool: Altar of Fangs, Murder Row,
+  Den of Nalorakk, The Blinding Vale, Voidscar Arena (new Midnight dungeons) plus
+  King's Rest, Temple of Sethraliss, Ruby Life Pools (returning legacy dungeons).
+  ChallengeMapID/instanceID/timeLimit sourced from the live MapChallengeMode DB2
+  and cross-checked against known-good Season 1 rows.
+- `Data/Dungeons.lua` no longer gates on a "current season" — every season's
+  table is merged into one lookup, so a future season only needs its data added,
+  no code change.
+- Added teleport buttons for all 8 Season 2 dungeons (best-effort spellIDs where
+  the game data had duplicate-named spells from a dungeon's earlier season — see
+  `Docs/SEASON_UPDATE.md` for the disambiguation note and how to fix one if wrong).
+- Still open for Season 2, tracked in `Docs/SEASON_UPDATE.md`: Dungeon Utility
+  mechanic content (CC/stops/skips) and auto-gossip NPC entries — both need
+  someone standing in the dungeon, not just data lookups. Everything else
+  (timer, affixes, score prediction, run summary) already works on any dungeon
+  via the live API regardless.
+
 ## 1.3.0 — 2026-06-28
 
 ### Season 2 Readiness

@@ -1,7 +1,7 @@
 ## Interface: 120005
 ## Title: |cff00ccffMythicPulse|r
 ## Author: MythicPulse Team
-## Version: 1.3.0
+## Version: 1.4.0
 ## Notes: All-in-one Mythic+ companion for WoW: Midnight. Spec-aware cooldowns with aura highlights, kick rotation, dispels, trinkets, auto-gossip, score prediction, demo mode, and more.
 ## Notes-ruRU: Универсальный аддон для M+ подземелий. Учитывает время восстановления способностей в зависимости от специализации, подсветку аур, ротацию прерываний, снятие негативных эффектов, аксессуары, автоматические диалоги, прогнозирование результатов, деморежим и многое другое.
 ## Notes-frFR: Compagnon tout-en-un pour les donjons Mythique+. Délais de récupération avec conscience de la spécialisation, mise en évidence des auras, rotation des interruptions, dissipations, objets, dialogues automatiques, prédiction de score, mode démo et plus encore.
@@ -15,7 +15,7 @@
 ## X-Website: https://github.com/mythicpulse
 ## X-Curse-Project-ID: 1528230
 ## X-Expansion: Midnight
-## X-Season: 1
+## X-Season: 2
 ## AddonCompartmentFunc: MythicPulse_OnAddonCompartmentClick
 ## AddonCompartmentFuncOnEnter: MythicPulse_OnAddonCompartmentEnter
 ## AddonCompartmentFuncOnLeave: MythicPulse_OnAddonCompartmentLeave

@@ -89,7 +89,10 @@ local TRACKED_SPELLS = {
     [6940]   = { class = "PALADIN", duration = 120, category = "external",  name = "Blessing of Sacrifice" },
     [31821]  = { class = "PALADIN", spec = 65, duration = 180, category = "raidcd",   name = "Aura Mastery" },
     [498]    = { class = "PALADIN", duration = 60,  category = "defensive", name = "Divine Protection" },
-    [86659]  = { class = "PALADIN", spec = 66, duration = 300, category = "defensive", name = "Guardian of Ancient Kings" },
+    -- 12.1: CD cut 5min->3min per charge, and it gained a 2nd charge (an
+    -- internal cooldown still blocks using both charges back-to-back).
+    -- See `charges` handling in StartCooldownOnRow / the recharge ticker below.
+    [86659]  = { class = "PALADIN", spec = 66, duration = 180, charges = 2, category = "defensive", name = "Guardian of Ancient Kings" },
     [633]    = { class = "PALADIN", duration = 600, category = "external",  name = "Lay on Hands" },
     [1044]   = { class = "PALADIN", duration = 25,  category = "external",  name = "Blessing of Freedom" },
     [204018] = { class = "PALADIN", duration = 180, category = "external",  name = "Blessing of Spellwarding" },
@@ -99,6 +102,8 @@ local TRACKED_SPELLS = {
     [33206]  = { class = "PRIEST", spec = 256, duration = 180, category = "external",  name = "Pain Suppression" },
     [47788]  = { class = "PRIEST", spec = 257, duration = 180, category = "external",  name = "Guardian Spirit" },
     [62618]  = { class = "PRIEST", spec = 256, duration = 180, category = "raidcd",   name = "Power Word: Barrier" },
+    -- 12.1: choice node vs. Power Word: Barrier above — a Disc Priest has one or the other.
+    [421543] = { class = "PRIEST", spec = 256, duration = 240, category = "raidcd",   name = "Ultimate Penitence" },
     [64901]  = { class = "PRIEST", spec = 257, duration = 300, category = "raidcd",   name = "Symbol of Hope" },
     [19236]  = { class = "PRIEST", duration = 90,  category = "defensive", name = "Desperate Prayer" },
     [586]    = { class = "PRIEST", duration = 30,  category = "utility",   name = "Fade" },
@@ -116,7 +121,7 @@ local TRACKED_SPELLS = {
     [108280] = { class = "SHAMAN", spec = 264, duration = 180, category = "raidcd",   name = "Healing Tide Totem" },
     [16191]  = { class = "SHAMAN", duration = 180, category = "raidcd",   name = "Mana Tide Totem" },
     [192058] = { class = "SHAMAN", duration = 60,  category = "utility",   name = "Capacitor Totem" },
-    [198103] = { class = "SHAMAN", duration = 300, category = "defensive", name = "Earth Elemental" },
+    [198103] = { class = "SHAMAN", duration = 180, category = "defensive", name = "Earth Elemental" }, -- 12.1: CD cut 5min->3min
     [546]    = { class = "SHAMAN", duration = 30,  category = "utility",   name = "Water Walking" },
 
     -- ============== Warlock ==============
@@ -386,6 +391,16 @@ local function BuildPlayerIcons(row, spellList)
         PlaceIcon(icon, i)
         icon:SetSpell(spellID, row.playerClass)
         icon:ClearCooldown()
+
+        -- Charge-based spells (e.g. 12.1 Guardian of Ancient Kings): assume
+        -- full charges on every rebuild, same "state resets on rebuild"
+        -- tradeoff already accepted for every other icon here (except
+        -- trinkets, restored separately below).
+        local data = TRACKED_SPELLS[spellID]
+        icon.maxCharges = data and data.charges or nil
+        icon.chargesUp  = icon.maxCharges
+        icon.chargeEnds = icon.maxCharges and {} or nil
+
         icon:Show()
     end
 
@@ -531,6 +546,38 @@ local function ScanGroup()
 end
 
 ----------------------------------------------------------------------
+-- Charge-based cooldowns (e.g. Guardian of Ancient Kings, 2 charges in 12.1)
+-- Consuming one charge only greys out the icon once ALL charges are spent;
+-- the sweep then shows time until the *soonest* charge finishes recharging.
+----------------------------------------------------------------------
+-- ponytail: doesn't model the short internal-cooldown that blocks casting
+-- both banked charges back-to-back — icon can flash "ready" a few seconds
+-- early in that edge case. Add if it turns out to matter in practice.
+local function ConsumeCharge(icon, dur)
+    icon.chargesUp = math.max(0, (icon.chargesUp or icon.maxCharges) - 1)
+    table.insert(icon.chargeEnds, GetTime() + dur)
+    if icon.chargesUp <= 0 then
+        local remain = icon.chargeEnds[1] - GetTime()
+        icon:StartCooldown(math.max(remain, 0.1))
+    end
+end
+
+--- Called every 0.5s (existing CD-text ticker) to recharge banked charges.
+local function TickChargeRecharge(icon)
+    if not icon.maxCharges or not icon.chargeEnds or #icon.chargeEnds == 0 then return end
+    local now = GetTime()
+    local recharged = false
+    while icon.chargeEnds[1] and icon.chargeEnds[1] <= now do
+        table.remove(icon.chargeEnds, 1)
+        icon.chargesUp = math.min(icon.maxCharges, (icon.chargesUp or 0) + 1)
+        recharged = true
+    end
+    if recharged and icon.chargesUp > 0 then
+        icon:ClearCooldown()
+    end
+end
+
+----------------------------------------------------------------------
 -- Start a cooldown on the matching row
 ----------------------------------------------------------------------
 local function StartCooldownOnRow(matchKey, matchType, spellID)
@@ -549,7 +596,11 @@ local function StartCooldownOnRow(matchKey, matchType, spellID)
         if matches then
             for _, icon in ipairs(row.icons) do
                 if icon.spellID == spellID then
-                    icon:StartCooldown(dur)
+                    if icon.maxCharges then
+                        ConsumeCharge(icon, dur)
+                    else
+                        icon:StartCooldown(dur)
+                    end
                     break
                 end
             end
@@ -673,7 +724,10 @@ updateFrame:SetScript("OnUpdate", function(self, dt)
     for _, row in ipairs(rows) do
         if row:IsShown() then
             for _, icon in ipairs(row.icons) do
-                if icon:IsShown() then icon:UpdateCDText() end
+                if icon:IsShown() then
+                    TickChargeRecharge(icon)
+                    icon:UpdateCDText()
+                end
             end
         end
     end
