@@ -1,61 +1,38 @@
 # MythicPulse
 
-**All-in-one Mythic+ companion for World of Warcraft: Midnight (12.x)**
+**Your Mythic+ run, at a glance — no clutter, no clicking through five different addons.**
 
-MythicPulse replaces the cluttered default Blizzard M+ UI with a clean, information-dense HUD built specifically for Midnight. Spec-aware cooldown tracking, interrupt rotation, live dungeon timer, enemy forces, Bloodlust and trinket status, death penalties, and a dungeon utility reference — all in one lightweight addon.
+MythicPulse replaces Blizzard's default M+ UI with a single, clean, spec-aware HUD built for Midnight. Everything you actually look at during a key — timer, cooldowns, kicks, dispels, trinkets — in one lightweight addon that gets out of your way outside of keys.
+
+**✅ Season 2 ready (Patch 12.1)** — dungeon data for the full 8-dungeon rotation is already in, including teleport buttons for every new and returning dungeon.
 
 ---
 
+## Why MythicPulse
+
+- **See what matters, when it matters.** Every HUD frame only shows inside an active key — no clutter in heroics, no clutter in raid.
+- **Built for the group, not just you.** Party cooldowns, dispels, and kicks are tracked for the whole team, not just your own bars.
+- **Zero setup.** Sensible defaults out of the box; `/mp config` if you want to tune it.
+
 ## Features
 
-### Dungeon Timer
-- Live elapsed / time-limit bar with **+2 and +3 threshold markers**
-- Color-coded pacing — shifts blue → orange → red as you fall behind
-- Boss kill splits with **±personal best** comparison inline
-- Personal best stored and displayed per dungeon and key level
-- Affix display with key level indicator
+**⏱ Dungeon Timer** — live pace bar with +2/+3 thresholds, color-coded so you always know if you're ahead or behind, boss splits compared against your own personal best per dungeon and key level, plus an affix display with key level indicator.
 
-### Enemy Forces
-- Real-time trash progress bar fed by the Scenario API
-- Pace marker showing where you need to be at the current elapsed time
-- Bar color shifts green / blue / orange / red based on projected completion
+**🛡 Party Cooldowns** — spec-aware icons anchored right onto your party frames (Blizzard or ElvUI). Defensives, externals, raid CDs, and utility spells for the whole group; active-buff highlight, dispel-ready indicator per player, fully configurable icon layout.
 
-### Party Cooldown Tracker
-- Spec-aware icons anchored directly to Blizzard or ElvUI party unit frames
-- Tracks defensives, externals, movement, raid cooldowns, and utility spells
-- Aura highlight when a buff is currently active on a player
-- Dispel indicator per player — lights up when you can remove a harmful debuff from them
-- Configurable icon size, gap, growth direction, anchor point, and max icons per row
+**⚔ Interrupt Tracker** — who's up, who's on cooldown, and last spell kicked, per player. `/mp rotation` auto-assigns and announces a kick order so nobody double-kicks a pack. Optional combat-only visibility.
 
-### Interrupt Tracker
-- Per-player interrupt rows with cooldown timer and last-kicked spell name
-- Kick rotation via `/mp rotation` — assigns order and announces it to the group
-- Optional combat-only visibility
+**💥 Enemy Forces, Bloodlust & Battle Res** — real-time trash progress with a pace marker; lust tracked (Shaman/Mage/Hunter) even if the caster isn't running the addon, via the Sated debuff; brez charges and readiness for the whole group at a glance.
 
-### Combat Utilities
-- **Battle Res** — tracks available charges with shared pool support in M+; shows who has a brez and whether it is ready
-- **Bloodlust** — detects sources from Shamans, Mages, and Hunters (exotic pet required); shows the Sated debuff timer when active
-- **Trinket** — shows your equipped on-use trinket icon with a Ready label or remaining cooldown; updates automatically when you swap trinkets
+**🎒 Trinket Tracker** — your equipped on-use trinket with a Ready label or remaining cooldown, updates automatically when you swap gear.
 
-### Dungeon Utility Panel
-- In-dungeon reference for class, spec, and race abilities relevant to the current dungeon
-- Auto-shows on entering a dungeon (configurable)
-- Covers crowd control, stops, skips, and dungeon-specific interactions
+**📖 Dungeon Utility Panel** — a live in-run reference for what to CC, what to stop, what to skip, for your class, spec, and race. Auto-shows on entering a dungeon.
 
-### Run History & Score Prediction
-- Every completed run is stored locally — no external API required
-- Personal best shown live in the HUD timer and on boss split rows
-- Estimated score and delta vs your existing best displayed after each run
+**📊 Run History & Score Prediction** — every completed run saved locally (no external service), with a live estimated score and PB delta the moment you finish.
 
-### Quality of Life
-- **Auto-slot** — automatically places your keystone when you open the M+ pedestal
-- **Keystone tracker** — shows your key and all party member keys; announce with `/mp keys`
-- **Death tracker** — counts deaths with the per-death time penalty for the current key level
-- **Dungeon teleports** — adds teleport spell buttons directly onto the Challenges UI dungeon icons (if you know the spell)
-- All Blizzard scenario and objective tracker frames are hidden during M+ for a clean UI
+**🗝 Quality of Life** — auto-slots your keystone when you open the pedestal, tracks the whole party's keys (`/mp keys`), a death-penalty counter, and one-click dungeon teleports on the Challenges UI. All Blizzard scenario/objective frames hidden during M+ for a clean UI.
 
-### Demo Mode
-- `/mp display` — previews the full HUD with mock data from any zone, no dungeon required
+**🎮 Demo Mode** — `/mp display` previews the entire HUD with mock data, anywhere, no key required — set up your layout before you queue.
 
 ---
 
@@ -90,7 +67,7 @@ All commands work with `/mp` or `/mythicpulse`.
 
 ## Compatibility
 
-- **WoW Version:** Midnight 12.0.x (Interface 120005)
+- **WoW Version:** Midnight 12.0.x – 12.1.x (Interface 120005, 121000)
 - **Midnight compliant** — no restricted events, no protected API calls, no automation
 - **Unit frames** — works with default Blizzard party frames and ElvUI
 - **Other addons** — does not conflict with WeakAuras, Details!, or MDT
