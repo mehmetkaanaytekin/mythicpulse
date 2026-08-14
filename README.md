@@ -67,7 +67,7 @@ All commands work with `/mp` or `/mythicpulse`.
 
 ## Compatibility
 
-- **WoW Version:** Midnight 12.0.x – 12.1.x (Interface 120005, 121000)
+- **WoW Version:** Midnight 12.0.x – 12.1.x (Interface 120005, 120100)
 - **Midnight compliant** — no restricted events, no protected API calls, no automation
 - **Unit frames** — works with default Blizzard party frames and ElvUI
 - **Other addons** — does not conflict with WeakAuras, Details!, or MDT

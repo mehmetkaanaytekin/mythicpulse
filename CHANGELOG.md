@@ -1,5 +1,14 @@
 # MythicPulse Changelog
 
+## 1.4.1 — 2026-08-14
+
+### Fix
+
+- Corrected the 12.1 `## Interface` number — 1.4.0 shipped with `121000`,
+  which doesn't match any real client build and made the addon show as
+  "out of date" in-game. The correct value for patch 12.1.0 is `120100`
+  (confirmed against live `GetBuildInfo()` output: `12.1.0.69273`).
+
 ## 1.4.0 — 2026-08-14
 
 ### Season 2 Data
